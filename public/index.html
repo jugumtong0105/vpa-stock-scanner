@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VPA 매수급소 스캐너 | 조건검색 추천</title>
+  <meta name="description" content="장대양봉 후 거래량 급감 음봉 패턴을 자동 탐지하여 매수 추천 종목을 찾아주는 도구">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">
+        <span class="logo-icon">📊</span>
+        <div>
+          <h1>VPA 매수급소 스캐너</h1>
+          <p class="logo-sub">조건검색 자동 추천 시스템</p>
+        </div>
+      </div>
+    </div>
+    <div class="header-center">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" placeholder="종목 추가 검색 (예: 삼성전자, 005930)">
+        <div id="searchResults" class="search-results"></div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="mode-toggle" id="modeToggle">
+        <button class="mode-btn active" data-mode="live">🔥 실전</button>
+        <button class="mode-btn" data-mode="backtest">🔬 검증</button>
+      </div>
+      <button class="btn-scan" id="btnScan">
+        <span>⚡</span> <span id="btnScanText">조건 스캔 시작</span>
+      </button>
+      <div class="market-time" id="marketTime"></div>
+    </div>
+  </header>
+
+  <!-- Main Layout -->
+  <main class="main-layout">
+    <!-- Left - Sidebar with Tabs -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-tabs">
+        <button class="sidebar-tab active" data-tab="scan">🎯 매칭종목</button>
+        <button class="sidebar-tab" data-tab="history">📈 성과추적</button>
+      </div>
+
+      <!-- TAB 1: Scan -->
+      <div class="tab-content active" id="tabScan">
+        <div class="sidebar-header">
+          <div class="scan-status" id="scanStatus">
+            <span class="status-dot idle"></span>
+            <span id="statusText">스캔 대기 중</span>
+          </div>
+        </div>
+        <div class="scan-progress-wrap" id="scanProgressWrap" style="display:none">
+          <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+          <span class="progress-text" id="progressText">0 / 0</span>
+        </div>
+        <div class="match-results" id="matchResults">
+          <div class="empty-state"><span>⚡</span><p><strong>[조건 스캔 시작]</strong> 버튼으로<br>매집구간 종목을 찾아보세요!</p></div>
+        </div>
+        <div class="scan-summary" id="scanSummary" style="display:none">
+          <div class="summary-row"><span>총 스캔</span><span id="totalScanned">0</span></div>
+          <div class="summary-row highlight"><span>매칭 종목</span><span id="totalMatched">0</span></div>
+          <div class="summary-row"><span>데이터 기준일</span><span id="dataDate">-</span></div>
+        </div>
+      </div>
+
+      <!-- TAB 2: Performance History -->
+      <div class="tab-content" id="tabHistory" style="display:none">
+        <div class="sidebar-header">
+          <div class="scan-status"><span id="historyStatus">저장된 시그널 로딩 중...</span></div>
+        </div>
+        <div class="perf-stats" id="perfStats" style="display:none">
+          <div class="stat-row"><span>총 시그널</span><span id="statTotal">0</span></div>
+          <div class="stat-row" style="color:#00d4aa"><span>🟢 수익</span><span id="statWin">0</span></div>
+          <div class="stat-row" style="color:#ff4757"><span>🔴 손실</span><span id="statLoss">0</span></div>
+          <div class="stat-row highlight"><span>승률</span><span id="statWinRate">-</span></div>
+          <div class="stat-row highlight"><span>평균수익률</span><span id="statAvgReturn">-</span></div>
+        </div>
+        <div class="match-results" id="historyResults">
+          <div class="empty-state"><span>📭</span><p>스캔 결과가 자동 저장됩니다<br>시간이 지나면 성과를 확인하세요!</p></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Center - Chart -->
+    <section class="chart-section">
+      <div class="stock-info-bar" id="stockInfoBar">
+        <div class="stock-title">
+          <h2 id="currentStockName">조건 스캔을 시작하세요</h2>
+          <span class="stock-code" id="currentStockCode"></span>
+        </div>
+        <div class="stock-price-info">
+          <span class="current-price" id="currentPrice"></span>
+          <span class="price-change" id="priceChange"></span>
+        </div>
+        <div class="range-selector">
+          <button class="range-btn" data-months="3">3M</button>
+          <button class="range-btn" data-months="6">6M</button>
+          <button class="range-btn active" data-months="12">1Y</button>
+        </div>
+      </div>
+
+      <div class="chart-container" id="chartContainer">
+        <div class="chart-placeholder" id="chartPlaceholder">
+          <div class="placeholder-icon">📈</div>
+          <p>⚡ 조건 스캔을 실행하면<br>매칭된 종목의 차트를 보여드려요</p>
+        </div>
+      </div>
+
+      <div class="signal-legend" id="signalLegend" style="display:none">
+        <span class="legend-item"><span class="dot volume"></span> ①기준봉</span>
+        <span class="legend-item"><span class="dot" style="background:#e056fd"></span> ④저점</span>
+        <span class="legend-item"><span class="dot buy"></span> 💎매수대기</span>
+        <span class="legend-item"><span class="dot" style="background:#f0c040"></span> MA5</span>
+        <span class="legend-item"><span class="dot" style="background:#00d4ff"></span> MA50</span>
+        <span class="legend-item"><span class="dot" style="background:#e056fd"></span> MA200</span>
+      </div>
+    </section>
+
+    <!-- Right Panel -->
+    <aside class="analysis-panel">
+      <!-- Parameters -->
+      <div class="panel-card params-card">
+        <h3>⚙️ 검색 조건 설정</h3>
+        <div class="param-group">
+          <label>장대양봉 등락률 (%)
+            <div class="param-row">
+              <input type="range" id="paramBullishRate" min="2" max="15" value="4" step="0.5">
+              <span class="param-value" id="valBullishRate">4%</span>
+            </div>
+          </label>
+          <label>거래량 배수 (x평균)
+            <div class="param-row">
+              <input type="range" id="paramVolMultiple" min="1" max="10" value="1.5" step="0.5">
+              <span class="param-value" id="valVolMultiple">1.5x</span>
+            </div>
+          </label>
+          <label>거래량 감소율 (%)
+            <div class="param-row">
+              <input type="range" id="paramVolDecline" min="20" max="85" value="65" step="5">
+              <span class="param-value" id="valVolDecline">65%</span>
+            </div>
+          </label>
+          <label>음봉 최대 하락폭 (%)
+            <div class="param-row">
+              <input type="range" id="paramBearishMax" min="-10" max="-1" value="-7" step="0.5">
+              <span class="param-value" id="valBearishMax">-7%</span>
+            </div>
+          </label>
+          <label>시그널 유효기간 (최근 N거래일)
+            <div class="param-row">
+              <input type="range" id="paramRecentDays" min="1" max="10" value="5" step="1">
+              <span class="param-value" id="valRecentDays">5일</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Signal Details (선택된 종목) -->
+      <div class="panel-card signals-card">
+        <h3>🎯 시그널 상세</h3>
+        <div class="signals-list" id="signalsList">
+          <div class="empty-state">
+            <span>📭</span>
+            <p>매칭 종목을 클릭하면<br>상세 정보가 표시됩니다</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Strategy -->
+      <div class="panel-card strategy-card">
+        <h3>📖 매매 전략</h3>
+        <div class="strategy-steps">
+          <div class="step"><span class="step-num">1</span><span>장대양봉 + 대량거래 = 세력 진입</span></div>
+          <div class="step"><span class="step-num">2</span><span>거래량 급감 음봉 = 매도세 소진</span></div>
+          <div class="step"><span class="step-num">3</span><span>이평선 위 지지 = 건전한 조정</span></div>
+          <div class="step"><span class="step-num">4</span><span>분할 매수 → 기준봉 고가 목표</span></div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Loading -->
+  <div class="loading-overlay" id="loadingOverlay" style="display:none">
+    <div class="spinner"></div>
+    <p id="loadingText">데이터를 불러오는 중...</p>
+  </div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>

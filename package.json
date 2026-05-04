@@ -1,0 +1,13 @@
+{
+  "name": "vpa-stock-scanner",
+  "version": "1.0.0",
+  "description": "VPA 매수급소 스캐너 - 장대양봉 후 거래량 급감 음봉 패턴 탐지",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
