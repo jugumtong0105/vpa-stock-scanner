@@ -449,10 +449,30 @@ document.addEventListener('DOMContentLoaded',()=>{
         t.style.display='none';
       });
       // 선택된 탭 보이기
-      const target = tab.dataset.tab === 'scan' ? 'tabScan' : 'tabHistory';
+      const target = tab.dataset.tab === 'scan' ? 'tabScan' : (tab.dataset.tab === 'newscan' ? 'tabNewScan' : (tab.dataset.tab === 'closing' ? 'tabClosing' : 'tabHistory'));
       const el = document.getElementById(target);
-      el.classList.add('active');
-      el.style.display='flex';
+      if (el) { el.classList.add('active'); el.style.display='flex'; }
+      
+      // 차트 영역 및 시그널 영역 토글
+      const isNew = tab.dataset.tab === 'newscan';
+      const isClosing = tab.dataset.tab === 'closing';
+      document.getElementById('chartContainer').style.display = (!isNew && !isClosing) ? 'block' : 'none';
+      document.getElementById('newChartContainer').style.display = isNew ? 'block' : 'none';
+      if (document.getElementById('closingChartContainer')) document.getElementById('closingChartContainer').style.display = isClosing ? 'block' : 'none';
+      
+      document.getElementById('signalsList').style.display = (!isNew && !isClosing) ? 'block' : 'none';
+      document.getElementById('newSignalsList').style.display = isNew ? 'block' : 'none';
+      if (document.getElementById('closingSignalsList')) document.getElementById('closingSignalsList').style.display = isClosing ? 'block' : 'none';
+      
+      if(document.getElementById('signalLegend')) document.getElementById('signalLegend').style.display = (!isNew && !isClosing) ? 'flex' : 'none';
+      if(document.getElementById('newSignalLegend')) document.getElementById('newSignalLegend').style.display = isNew ? 'flex' : 'none';
+      if(document.getElementById('closingSignalLegend')) document.getElementById('closingSignalLegend').style.display = isClosing ? 'flex' : 'none';
+
+      const strategyCard = document.querySelector('.strategy-card:not(.closing-strategy)');
+      const closingStrategyCard = document.getElementById('closingStrategyCard');
+      if (strategyCard) strategyCard.style.display = isClosing ? 'none' : 'block';
+      if (closingStrategyCard) closingStrategyCard.style.display = isClosing ? 'block' : 'none';
+
       if (tab.dataset.tab === 'history') loadHistory();
     });
   });

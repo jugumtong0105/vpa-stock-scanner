@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ko" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quantum Alpha | 초정밀 타점 스캐너</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+  <link rel="stylesheet" href="/css/quantum.css">
+</head>
+<body>
+  <!-- Background Glow Effects -->
+  <div class="glow glow-1"></div>
+  <div class="glow glow-2"></div>
+
+  <!-- Header -->
+  <header class="header glass-panel">
+    <div class="logo">
+      <div class="logo-icon">Q</div>
+      <div class="logo-text">
+        <h1>QUANTUM ALPHA</h1>
+        <p>확률 극대화 4중 교차 검증 시스템</p>
+      </div>
+    </div>
+    <div class="header-controls">
+      <div class="progress-container" id="progressContainer" style="display: none;">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <span class="progress-text" id="progressText">0 / 0</span>
+      </div>
+      <button class="btn-scan" id="btnScan">
+        <span class="btn-icon">⚡</span> 
+        <span id="btnScanText">퀀텀 스캔 시작</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Layout -->
+  <main class="main-layout">
+    
+    <!-- Left Sidebar: Results -->
+    <aside class="sidebar glass-panel">
+      <div class="sidebar-header">
+        <h2>매칭 종목 <span class="badge" id="matchCount">0</span></h2>
+      </div>
+      <div class="results-list" id="resultsList">
+        <div class="empty-state">
+          <div class="empty-icon">⚛️</div>
+          <p>우측 상단의 <strong>[퀀텀 스캔 시작]</strong>을 눌러<br>확률 높은 타점을 검색하세요.</p>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Center: Chart & Details -->
+    <section class="content-area">
+      <!-- Top Info Bar -->
+      <div class="stock-info-bar glass-panel" id="stockInfoBar" style="visibility: hidden;">
+        <div class="stock-header">
+          <h2 id="stockName">-</h2>
+          <span class="stock-code" id="stockCode">-</span>
+        </div>
+        <div class="stock-price">
+          <span class="current-price" id="stockPrice">-</span>
+          <span class="price-change" id="stockChange">-</span>
+        </div>
+      </div>
+
+      <!-- Chart Container -->
+      <div class="chart-wrapper glass-panel">
+        <div id="chartContainer" class="chart-container">
+          <div class="chart-placeholder" id="chartPlaceholder">
+            <div class="placeholder-icon">📈</div>
+            <p>종목을 선택하면 상세 차트와<br>지표 분석이 표시됩니다.</p>
+          </div>
+        </div>
+        <div class="chart-legend" id="chartLegend" style="display: none;">
+          <span class="legend-item"><span class="dot dot-ma20"></span> 20일 이평선</span>
+          <span class="legend-item"><span class="dot dot-bb"></span> 볼린저 밴드 (20, 2)</span>
+        </div>
+      </div>
+
+      <!-- Bottom: Strategy Analysis -->
+      <div class="analysis-panel glass-panel" id="analysisPanel" style="visibility: hidden;">
+        <h3>퀀텀 4중 필터 분석</h3>
+        <div class="filter-grid">
+          <div class="filter-card" id="filterTrend">
+            <div class="filter-icon">📈</div>
+            <div class="filter-details">
+              <h4>1. 추세 (Trend)</h4>
+              <p>주가 > 20MA 상단 유지</p>
+            </div>
+            <div class="filter-status">PASS</div>
+          </div>
+          <div class="filter-card" id="filterSqueeze">
+            <div class="filter-icon">🗜️</div>
+            <div class="filter-details">
+              <h4>2. 변동성 (Squeeze)</h4>
+              <p>볼린저 밴드 극도 수축</p>
+            </div>
+            <div class="filter-status">PASS</div>
+          </div>
+          <div class="filter-card" id="filterVolume">
+            <div class="filter-icon">🔥</div>
+            <div class="filter-details">
+              <h4>3. 수급 (Volume)</h4>
+              <p>평균 대비 거래량 폭발</p>
+            </div>
+            <div class="filter-status">PASS</div>
+          </div>
+          <div class="filter-card" id="filterMacd">
+            <div class="filter-icon">⚡</div>
+            <div class="filter-details">
+              <h4>4. 보조 (MACD)</h4>
+              <p>MACD 시그널 돌파</p>
+            </div>
+            <div class="filter-status">PASS</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="/js/quantum.js"></script>
+</body>
+</html>

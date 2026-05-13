@@ -48,6 +48,8 @@
       <div class="sidebar-tabs">
         <button class="sidebar-tab active" data-tab="scan">🎯 매칭종목</button>
         <button class="sidebar-tab" data-tab="history">📈 성과추적</button>
+        <button class="sidebar-tab" data-tab="newscan" style="color:#e056fd">🚀 신규 조건검색</button>
+        <button class="sidebar-tab" data-tab="closing" style="color:#f0932b">💵 종가베팅(신고가)</button>
       </div>
 
       <!-- TAB 1: Scan -->
@@ -88,6 +90,46 @@
           <div class="empty-state"><span>📭</span><p>스캔 결과가 자동 저장됩니다<br>시간이 지나면 성과를 확인하세요!</p></div>
         </div>
       </div>
+
+      <!-- TAB 3: New Scan -->
+      <div class="tab-content" id="tabNewScan" style="display:none">
+        <div class="sidebar-header">
+          <button class="btn-scan" id="btnNewScan" style="width:100%; background:linear-gradient(135deg, #e056fd, #8c7ae6); margin-bottom:10px;">
+            <span>🚀</span> <span id="btnNewScanText">신규 조건 스캔</span>
+          </button>
+          <div class="scan-status" id="newScanStatus">
+            <span class="status-dot idle new-status-dot"></span>
+            <span id="newStatusText">스캔 대기 중</span>
+          </div>
+        </div>
+        <div class="scan-progress-wrap" id="newScanProgressWrap" style="display:none">
+          <div class="progress-bar"><div class="progress-fill" id="newProgressFill" style="background:#e056fd"></div></div>
+          <span class="progress-text" id="newProgressText">0 / 0</span>
+        </div>
+        <div class="match-results" id="newMatchResults">
+          <div class="empty-state"><span>🚀</span><p><strong>[신규 조건 스캔]</strong> 버튼으로<br>골든크로스 + BB상단 돌파 종목을 찾아보세요!</p></div>
+        </div>
+      </div>
+
+      <!-- TAB 4: Closing Scan (부자회사원 종가베팅) -->
+      <div class="tab-content" id="tabClosing" style="display:none">
+        <div class="sidebar-header">
+          <button class="btn-scan" id="btnClosingScan" style="width:100%; background:linear-gradient(135deg, #f0932b, #eb4d4b); margin-bottom:10px;">
+            <span>💵</span> <span id="btnClosingScanText">종가베팅 스캔 시작</span>
+          </button>
+          <div class="scan-status" id="closingScanStatus">
+            <span class="status-dot idle closing-status-dot"></span>
+            <span id="closingStatusText">스캔 대기 중</span>
+          </div>
+        </div>
+        <div class="scan-progress-wrap" id="closingScanProgressWrap" style="display:none">
+          <div class="progress-bar"><div class="progress-fill" id="closingProgressFill" style="background:#f0932b"></div></div>
+          <span class="progress-text" id="closingProgressText">0 / 0</span>
+        </div>
+        <div class="match-results" id="closingMatchResults">
+          <div class="empty-state"><span>💵</span><p><strong>[종가베팅 스캔]</strong> 버튼으로<br>52주 신고가 + 거래량 급감 눌림목을 찾아보세요!</p></div>
+        </div>
+      </div>
     </aside>
 
     <!-- Center - Chart -->
@@ -114,6 +156,12 @@
           <p>⚡ 조건 스캔을 실행하면<br>매칭된 종목의 차트를 보여드려요</p>
         </div>
       </div>
+      <!-- New Scanner Chart Container (Hidden by default, shown via JS) -->
+      <div class="chart-container" id="newChartContainer" style="display:none">
+      </div>
+      <!-- Closing Scanner Chart Container -->
+      <div class="chart-container" id="closingChartContainer" style="display:none">
+      </div>
 
       <div class="signal-legend" id="signalLegend" style="display:none">
         <span class="legend-item"><span class="dot volume"></span> ①기준봉</span>
@@ -122,6 +170,18 @@
         <span class="legend-item"><span class="dot" style="background:#f0c040"></span> MA5</span>
         <span class="legend-item"><span class="dot" style="background:#00d4ff"></span> MA50</span>
         <span class="legend-item"><span class="dot" style="background:#e056fd"></span> MA200</span>
+      </div>
+      <div class="signal-legend" id="newSignalLegend" style="display:none">
+        <span class="legend-item"><span class="dot buy" style="background:#00d4aa"></span> 🔥매수타점</span>
+        <span class="legend-item"><span class="dot" style="background:#f0c040"></span> MA5</span>
+        <span class="legend-item"><span class="dot" style="background:#00d4ff"></span> MA20</span>
+        <span class="legend-item"><span class="dot" style="background:rgba(224,86,253,0.6)"></span> BB상단</span>
+      </div>
+      <div class="signal-legend" id="closingSignalLegend" style="display:none">
+        <span class="legend-item"><span class="dot volume"></span> ①신고가돌파</span>
+        <span class="legend-item"><span class="dot buy" style="background:#f0932b"></span> 💎음봉타점</span>
+        <span class="legend-item"><span class="dot" style="background:#f0c040"></span> MA5 (지지선)</span>
+        <span class="legend-item"><span class="dot" style="background:#00d4ff"></span> MA20</span>
       </div>
     </section>
 
@@ -173,6 +233,20 @@
             <p>매칭 종목을 클릭하면<br>상세 정보가 표시됩니다</p>
           </div>
         </div>
+        <!-- New Scanner Signals List -->
+        <div class="signals-list" id="newSignalsList" style="display:none">
+          <div class="empty-state">
+            <span>📭</span>
+            <p>매칭 종목을 클릭하면<br>상세 정보가 표시됩니다</p>
+          </div>
+        </div>
+        <!-- Closing Scanner Signals List -->
+        <div class="signals-list" id="closingSignalsList" style="display:none">
+          <div class="empty-state">
+            <span>📭</span>
+            <p>매칭 종목을 클릭하면<br>상세 정보가 표시됩니다</p>
+          </div>
+        </div>
       </div>
 
       <!-- Strategy -->
@@ -185,6 +259,17 @@
           <div class="step"><span class="step-num">4</span><span>분할 매수 → 기준봉 고가 목표</span></div>
         </div>
       </div>
+      
+      <!-- Closing Strategy -->
+      <div class="panel-card strategy-card closing-strategy" id="closingStrategyCard" style="display:none">
+        <h3 style="color:#f0932b">📖 종가베팅 매매 원칙</h3>
+        <div class="strategy-steps">
+          <div class="step"><span class="step-num" style="background:#f0932b">1</span><span><b>신고가 돌파:</b> 52주 고점 + 장대양봉 확인</span></div>
+          <div class="step"><span class="step-num" style="background:#f0932b">2</span><span><b>눌림목 타점:</b> 거래량 30% 이하 짧은 음봉</span></div>
+          <div class="step"><span class="step-num" style="background:#f0932b">3</span><span><b>수급 및 시황:</b> 기관 순매수 유입 및 상승장 확인</span></div>
+          <div class="step"><span class="step-num" style="background:#ff4757">4</span><span style="color:#ff4757"><b>칼손절:</b> 5일선 이탈 시 뒤도 돌아보지 않고 매도</span></div>
+        </div>
+      </div>
     </aside>
   </main>
 
@@ -195,5 +280,7 @@
   </div>
 
   <script src="/js/app.js"></script>
+  <script src="/js/new-scanner.js"></script>
+  <script src="/js/closing-scanner.js"></script>
 </body>
 </html>

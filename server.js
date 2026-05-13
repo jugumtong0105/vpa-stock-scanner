@@ -151,6 +151,77 @@ app.delete('/api/signals/:id', (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
+// ===== 신규 조건검색 (Market Cap) =====
+app.get('/api/new-scanner/stocklist', async (req, res) => {
+  try {
+    const all = [];
+    for (const sosok of [0, 1]) { // 0: KOSPI, 1: KOSDAQ
+      for (let page = 1; page <= 30; page++) { // 시총 500억 이하를 포함하기 위해 30페이지 정도 탐색 (약 1500종목)
+        const url = `https://finance.naver.com/sise/sise_market_sum.naver?sosok=${sosok}&page=${page}`;
+        const r = await fetch(url, { headers: { ...UA, 'Accept-Language': 'ko' } });
+        const buf = await r.arrayBuffer();
+        const html = new TextDecoder('euc-kr').decode(buf);
+        
+        const rows = html.split('onMouseOver="mouseOver(this)"');
+        for (let i = 1; i < rows.length; i++) {
+          const row = rows[i];
+          const codeMatch = row.match(/code=(\d{6})/);
+          const nameMatch = row.match(/class="tltle">([^<]+)<\/a>/);
+          const tds = [...row.matchAll(/<td class="number">([\d,\.\-N/A\s]+)<\/td>/g)].map(m => m[1].trim());
+          if (codeMatch && nameMatch && tds.length >= 4) {
+            const mcapStr = tds[2].replace(/,/g, '');
+            const mcap = parseInt(mcapStr, 10);
+            if (!isNaN(mcap)) {
+              all.push({ code: codeMatch[1], name: nameMatch[1], mcap: mcap, market: sosok === 0 ? 'KOSPI' : 'KOSDAQ' });
+            }
+          }
+        }
+        await new Promise(r => setTimeout(r, 50));
+      }
+    }
+    console.log(`✅ 신규조건검색 종목 ${all.length}개 로딩 완료 (시가총액 포함)`);
+    res.json({ success: true, count: all.length, stocks: all });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// ===== 신규 조건검색: 기관 수급 데이터 조회 =====
+app.get('/api/new-scanner/investor/:code', async (req, res) => {
+  try {
+    const { code } = req.params;
+    const url = `https://finance.naver.com/item/frgn.naver?code=${code}`;
+    const r = await fetch(url, { headers: { ...UA, 'Accept-Language': 'ko' } });
+    const buf = await r.arrayBuffer();
+    const html = new TextDecoder('euc-kr').decode(buf);
+    
+    // 기관순매매 데이터 추출 (대략적인 정규식 사용)
+    const regex = /<td class="num">.*?(<span class="tah p11[^>]*>([\+\-,\d]+)<\/span>|<\/td>)/g;
+    const matches = [...html.matchAll(regex)];
+    // 매치되는 항목 중 기관 매매동향은 일별 데이터 행의 특정 열에 존재
+    // 간단한 파싱을 위해 텍스트 기반 추출
+    const trRegex = /<tr[^>]*onmouseover="mouseOver[^>]*>([\s\S]*?)<\/tr>/g;
+    const trMatches = [...html.matchAll(trRegex)];
+    
+    const investorData = [];
+    for (let i = 0; i < Math.min(5, trMatches.length); i++) {
+      const tdRegex = /<td[^>]*>(?:<span[^>]*>)?(.*?)(?:<\/span>)?<\/td>/g;
+      const tds = [...trMatches[i][1].matchAll(tdRegex)].map(m => m[1].replace(/<[^>]+>/g, '').trim());
+      if (tds.length >= 7) {
+        // 외국인: tds[5], 기관: tds[6] (표 구조에 따라 변동 가능, 통상적으로 기관순매매는 6번째 위치)
+        const instNet = parseInt(tds[6].replace(/,/g, ''), 10);
+        const foreignNet = parseInt(tds[5].replace(/,/g, ''), 10);
+        investorData.push({ 
+          date: tds[0], 
+          close: parseInt(tds[1].replace(/,/g, ''), 10),
+          instNet: isNaN(instNet) ? 0 : instNet,
+          foreignNet: isNaN(foreignNet) ? 0 : foreignNet
+        });
+      }
+    }
+    
+    res.json({ success: true, data: investorData });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
 app.listen(PORT, () => {
   ensureDataDir();
   console.log(`\n🚀 VPA 매수급소 스캐너 v5 (성과추적 탑재)`);
