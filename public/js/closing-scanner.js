@@ -102,7 +102,12 @@ async function analyzeClosingPattern(data, stock) {
   const ma5 = calcMA(data, evalIdx, 5);
   baseSignal.ma5 = ma5 ? ma5.toFixed(2) : 0;
 
-  if (!isTodayYin || !volDried || !ma5 || today.close < ma5) {
+  // 5일선을 이탈(종가가 5일선 아래)한 종목은 매도 원칙에 따라 스캔 대상에서 아예 제외
+  if (ma5 && today.close < ma5) {
+    return null;
+  }
+
+  if (!isTodayYin || !volDried || !ma5) {
     return { stage: 1, signal: baseSignal };
   }
 
