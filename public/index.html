@@ -50,6 +50,7 @@
         <button class="sidebar-tab" data-tab="history">📈 성과추적</button>
         <button class="sidebar-tab" data-tab="newscan" style="color:#e056fd">🚀 신규 조건검색</button>
         <button class="sidebar-tab" data-tab="closing" style="color:#f0932b">💵 종가베팅(신고가)</button>
+        <button class="sidebar-tab" data-tab="tomorrow" style="color:#10b981">🌪️ 내일급등(수렴)</button>
       </div>
 
       <!-- TAB 1: Scan -->
@@ -130,6 +131,26 @@
           <div class="empty-state"><span>💵</span><p><strong>[종가베팅 스캔]</strong> 버튼으로<br>52주 신고가 + 거래량 급감 눌림목을 찾아보세요!</p></div>
         </div>
       </div>
+
+      <!-- TAB 5: Tomorrow Scan (내일 급등 셋업 베팅) -->
+      <div class="tab-content" id="tabTomorrow" style="display:none">
+        <div class="sidebar-header">
+          <button class="btn-scan" id="btnTomorrowScan" style="width:100%; background:linear-gradient(135deg, #10b981, #059669); margin-bottom:10px;">
+            <span>🌪️</span> <span id="btnTomorrowScanText">내일급등 스캔 시작</span>
+          </button>
+          <div class="scan-status" id="tomorrowScanStatus">
+            <span class="status-dot idle tomorrow-status-dot"></span>
+            <span id="tomorrowStatusText">스캔 대기 중</span>
+          </div>
+        </div>
+        <div class="scan-progress-wrap" id="tomorrowScanProgressWrap" style="display:none">
+          <div class="progress-bar"><div class="progress-fill" id="tomorrowProgressFill" style="background:#10b981"></div></div>
+          <span class="progress-text" id="tomorrowProgressText">0 / 0</span>
+        </div>
+        <div class="match-results" id="tomorrowMatchResults">
+          <div class="empty-state"><span>🌪️</span><p><strong>[내일급등 스캔]</strong> 버튼으로<br>폭풍 전야의 이평 수렴 + 볼밴 밀집 종목을 찾으세요!</p></div>
+        </div>
+      </div>
     </aside>
 
     <!-- Center - Chart -->
@@ -162,6 +183,9 @@
       <!-- Closing Scanner Chart Container -->
       <div class="chart-container" id="closingChartContainer" style="display:none">
       </div>
+      <!-- Tomorrow Scanner Chart Container -->
+      <div class="chart-container" id="tomorrowChartContainer" style="display:none">
+      </div>
 
       <div class="signal-legend" id="signalLegend" style="display:none">
         <span class="legend-item"><span class="dot volume"></span> ①기준봉</span>
@@ -182,6 +206,13 @@
         <span class="legend-item"><span class="dot buy" style="background:#f0932b"></span> 💎음봉타점</span>
         <span class="legend-item"><span class="dot" style="background:#f0c040"></span> MA5 (지지선)</span>
         <span class="legend-item"><span class="dot" style="background:#00d4ff"></span> MA20</span>
+      </div>
+      <div class="signal-legend" id="tomorrowSignalLegend" style="display:none">
+        <span class="legend-item"><span class="dot volume" style="background:#ec4899"></span> ①급등기준봉</span>
+        <span class="legend-item"><span class="dot buy" style="background:#10b981"></span> 💎수렴타점</span>
+        <span class="legend-item"><span class="dot" style="background:#f0c040"></span> MA5</span>
+        <span class="legend-item"><span class="dot" style="background:#00d4ff"></span> MA20</span>
+        <span class="legend-item"><span class="dot" style="background:rgba(236,72,153,0.6)"></span> 볼린저밴드</span>
       </div>
     </section>
 
@@ -247,6 +278,13 @@
             <p>매칭 종목을 클릭하면<br>상세 정보가 표시됩니다</p>
           </div>
         </div>
+        <!-- Tomorrow Scanner Signals List -->
+        <div class="signals-list" id="tomorrowSignalsList" style="display:none">
+          <div class="empty-state">
+            <span>📭</span>
+            <p>매칭 종목을 클릭하면<br>상세 정보가 표시됩니다</p>
+          </div>
+        </div>
       </div>
 
       <!-- Strategy -->
@@ -270,6 +308,17 @@
           <div class="step"><span class="step-num" style="background:#ff4757">4</span><span style="color:#ff4757"><b>칼손절:</b> 5일선 이탈 시 뒤도 돌아보지 않고 매도</span></div>
         </div>
       </div>
+
+      <!-- Tomorrow Strategy -->
+      <div class="panel-card strategy-card tomorrow-strategy" id="tomorrowStrategyCard" style="display:none">
+        <h3 style="color:#10b981">📖 내일급등 선취매 전략</h3>
+        <div class="strategy-steps">
+          <div class="step"><span class="step-num" style="background:#10b981">1</span><span><b>자금 유입:</b> 10일내 10% 이상 급등한 기준봉 확인</span></div>
+          <div class="step"><span class="step-num" style="background:#10b981">2</span><span><b>이평 수렴:</b> 5일선과 20일선의 간격이 좁아지는 구간</span></div>
+          <div class="step"><span class="step-num" style="background:#10b981">3</span><span><b>볼밴 밀집:</b> 볼린저밴드 상단 바로 아래에서 에너지 응축</span></div>
+          <div class="step"><span class="step-num" style="background:#10b981">4</span><span><b>폭풍 전야:</b> 전일 대비 거래량이 급감한 단봉 캔들 확인</span></div>
+        </div>
+      </div>
     </aside>
   </main>
 
@@ -282,5 +331,6 @@
   <script src="/js/app.js"></script>
   <script src="/js/new-scanner.js"></script>
   <script src="/js/closing-scanner.js"></script>
+  <script src="/js/tomorrow-scanner.js"></script>
 </body>
 </html>
