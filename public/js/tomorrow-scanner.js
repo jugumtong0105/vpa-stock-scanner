@@ -17,6 +17,34 @@ function fmtD(d) { return `${d.substring(0,4)}-${d.substring(4,6)}-${d.substring
 function calcMA(data, i, p) { if (i < p - 1) return null; let s = 0; for (let j = i - p + 1; j <= i; j++) s += data[j].close; return s / p; }
 function buildMA(data, p) { const r = []; for (let i = 0; i < data.length; i++) { if (i < p - 1) continue; let s = 0; for (let j = i - p + 1; j <= i; j++) s += data[j].close; r.push({ time: fmtD(data[i].date), value: s / p }); } return r; }
 
+function calcWMA(data, i, p) {
+  if (i < p - 1) return null;
+  let s = 0;
+  let wSum = (p * (p + 1)) / 2;
+  let weight = 1;
+  for (let j = i - p + 1; j <= i; j++) {
+    s += data[j].close * weight;
+    weight++;
+  }
+  return s / wSum;
+}
+
+function buildWMA(data, p) {
+  const r = [];
+  let wSum = (p * (p + 1)) / 2;
+  for (let i = 0; i < data.length; i++) {
+    if (i < p - 1) continue;
+    let s = 0;
+    let weight = 1;
+    for (let j = i - p + 1; j <= i; j++) {
+      s += data[j].close * weight;
+      weight++;
+    }
+    r.push({ time: fmtD(data[i].date), value: s / wSum });
+  }
+  return r;
+}
+
 // 볼린저밴드 계산
 function calcStdDev(data, i, p, ma) {
   if (i < p - 1 || ma === null) return null;
@@ -90,31 +118,34 @@ async function analyzeTomorrowPattern(data, stock) {
   // 10일 이내에 돈이 들어온 흔적(급등)이 없으면 탈락
   if (targetCandleIdx === -1) return null;
 
-  const ma5 = calcMA(data, evalIdx, 5);
-  const ma20 = calcMA(data, evalIdx, 20);
-  const sd = calcStdDev(data, evalIdx, 20, ma20);
+  const wma5 = calcWMA(data, evalIdx, 5);
+  const wma20 = calcWMA(data, evalIdx, 20);
   
-  if (!ma5 || !ma20 || !sd) return null;
-  const bbUpper = ma20 + (sd * 2);
+  // 볼린저 밴드는 단순이평(SMA)을 기준으로 계산 (표준)
+  const sma20 = calcMA(data, evalIdx, 20);
+  const sd = calcStdDev(data, evalIdx, 20, sma20);
+  
+  if (!wma5 || !wma20 || !sma20 || !sd) return null;
+  const bbUpper = sma20 + (sd * 2);
 
   const baseSignal = {
     evalDate: fmtD(today.date),
     entryPrice: today.close,
     targetDate: fmtD(targetCandle.date),
     targetHighPct: (((targetCandle.high - data[targetCandleIdx-1].close) / data[targetCandleIdx-1].close) * 100).toFixed(1),
-    ma5: ma5.toFixed(2),
-    ma20: ma20.toFixed(2),
+    wma5: wma5.toFixed(2),
+    wma20: wma20.toFixed(2),
     bbUpper: bbUpper.toFixed(2)
   };
 
-  // A 변형: 이평선 수렴. 5일선이 20일선 근처이거나 크로스 초입
-  // 조건: 5일선이 20일선의 98% ~ 105% 이내 위치
-  const isMaConverged = ma5 >= ma20 * 0.98 && ma5 <= ma20 * 1.05;
+  // A 변형: 가중이평선 수렴. 5일선이 20일선 근처이거나 크로스 초입
+  // 조건: 가중 5일선이 가중 20일선의 98% ~ 105% 이내 위치
+  const isMaConverged = wma5 >= wma20 * 0.98 && wma5 <= wma20 * 1.05;
   if (!isMaConverged) return null;
 
   // E 변형: 볼린저 밴드 상단 근접 & 횡보
-  // 조건: 오늘 종가가 20일선 위이면서, 밴드 상단보다 너무 높지 않아야 함 (상단의 90% ~ 105% 이내)
-  const isNearBBUpper = today.close >= ma20 && today.close >= bbUpper * 0.85 && today.close <= bbUpper * 1.05;
+  // 조건: 오늘 종가가 단순 20일선 위이면서, 밴드 상단보다 너무 높지 않아야 함 (상단의 85% ~ 105% 이내)
+  const isNearBBUpper = today.close >= sma20 && today.close >= bbUpper * 0.85 && today.close <= bbUpper * 1.05;
   if (!isNearBBUpper) return null;
 
   // --- 여기까지가 1단계 (급등 이력 + 이평수렴 + 볼밴상단근접) ---
@@ -145,8 +176,8 @@ function initTomorrowChart() {
     timeScale: { borderColor: '#1e293b', timeVisible: false, rightOffset: 3, barSpacing: 8 },
   });
   T.candle = c.addCandlestickSeries({ upColor: '#ff4757', downColor: '#3b82f6', borderDownColor: '#3b82f6', borderUpColor: '#ff4757', wickDownColor: '#3b82f6', wickUpColor: '#ff4757' });
-  T.ma5 = c.addLineSeries({ color: '#f0c040', lineWidth: 2, title: 'MA5', priceLineVisible: false, lastValueVisible: false });
-  T.ma20 = c.addLineSeries({ color: '#00d4ff', lineWidth: 2, title: 'MA20', priceLineVisible: false, lastValueVisible: false });
+  T.ma5 = c.addLineSeries({ color: '#f0c040', lineWidth: 2, title: 'WMA5', priceLineVisible: false, lastValueVisible: false });
+  T.ma20 = c.addLineSeries({ color: '#00d4ff', lineWidth: 2, title: 'WMA20', priceLineVisible: false, lastValueVisible: false });
   T.bbUpper = c.addLineSeries({ color: 'rgba(236, 72, 153, 0.6)', lineWidth: 1, title: 'BB(Upper)', priceLineVisible: false, lastValueVisible: false });
   T.bbLower = c.addLineSeries({ color: 'rgba(236, 72, 153, 0.6)', lineWidth: 1, title: 'BB(Lower)', priceLineVisible: false, lastValueVisible: false });
   
@@ -159,8 +190,8 @@ function initTomorrowChart() {
 function showTomorrowChart(data, signal) {
   if (!T.chart) initTomorrowChart();
   T.candle.setData(data.map(d => ({ time: fmtD(d.date), open: d.open, high: d.high, low: d.low, close: d.close })));
-  T.ma5.setData(buildMA(data, 5)); 
-  T.ma20.setData(buildMA(data, 20)); 
+  T.ma5.setData(buildWMA(data, 5)); 
+  T.ma20.setData(buildWMA(data, 20)); 
   T.bbUpper.setData(buildBBUpper(data, 20, 2));
   T.bbLower.setData(buildBBLower(data, 20, 2));
   
@@ -319,7 +350,7 @@ function renderTomorrowSignalDetails(s, stage) {
     <div class="signal-date" style="font-size:13px;font-weight:700;color:${color}">${stageText}</div>
     <div class="signal-detail" style="font-size:11px;line-height:1.7;margin-top:8px;">
       <b>🔥 1. 급등 이력:</b> ${s.targetDate} (고가 +${s.targetHighPct}%)<br>
-      <b>📈 2. 이평 수렴:</b> 5일선(${s.ma5})이 20일선(${s.ma20})과 근접 (골든크로스 초입)<br>
+      <b>📈 2. 가중이평 수렴:</b> 가중 5일선(${s.wma5})이 가중 20일선(${s.wma20})과 근접 (골든크로스 초입)<br>
       <b>🌪️ 3. 볼밴 밀집:</b> 종가가 볼린저밴드 상단(${s.bbUpper}) 근처에서 힘을 응축 중<br>
       <b>📉 4. 폭풍 전야:</b> ${stage === 2 ? '변동성이 죽고 거래량이 말랐습니다! (내일 급등 유력)' : '단봉(십자도지 등)이 나오거나 거래량이 더 줄기를 기다립니다.'}<br>
       <br>
