@@ -449,7 +449,15 @@ document.addEventListener('DOMContentLoaded',()=>{
         t.style.display='none';
       });
       // 선택된 탭 보이기
-      const target = tab.dataset.tab === 'scan' ? 'tabScan' : (tab.dataset.tab === 'newscan' ? 'tabNewScan' : (tab.dataset.tab === 'closing' ? 'tabClosing' : (tab.dataset.tab === 'tomorrow' ? 'tabTomorrow' : 'tabHistory')));
+      const targetMap = {
+        'scan': 'tabScan',
+        'history': 'tabHistory',
+        'newscan': 'tabNewScan',
+        'closing': 'tabClosing',
+        'tomorrow': 'tabTomorrow',
+        'rebound': 'tabRebound'
+      };
+      const target = targetMap[tab.dataset.tab] || 'tabScan';
       const el = document.getElementById(target);
       if (el) { el.classList.add('active'); el.style.display='flex'; }
       
@@ -457,27 +465,37 @@ document.addEventListener('DOMContentLoaded',()=>{
       const isNew = tab.dataset.tab === 'newscan';
       const isClosing = tab.dataset.tab === 'closing';
       const isTomorrow = tab.dataset.tab === 'tomorrow';
-      document.getElementById('chartContainer').style.display = (!isNew && !isClosing && !isTomorrow) ? 'block' : 'none';
-      document.getElementById('newChartContainer').style.display = isNew ? 'block' : 'none';
-      if (document.getElementById('closingChartContainer')) document.getElementById('closingChartContainer').style.display = isClosing ? 'block' : 'none';
-      if (document.getElementById('tomorrowChartContainer')) document.getElementById('tomorrowChartContainer').style.display = isTomorrow ? 'block' : 'none';
+      const isRebound = tab.dataset.tab === 'rebound';
+
+      const isMain = !isNew && !isClosing && !isTomorrow && !isRebound;
+
+      document.getElementById('chartContainer').style.display = isMain ? 'block' : 'none';
+      if(document.getElementById('newChartContainer')) document.getElementById('newChartContainer').style.display = isNew ? 'block' : 'none';
+      if(document.getElementById('closingChartContainer')) document.getElementById('closingChartContainer').style.display = isClosing ? 'block' : 'none';
+      if(document.getElementById('tomorrowChartContainer')) document.getElementById('tomorrowChartContainer').style.display = isTomorrow ? 'block' : 'none';
+      if(document.getElementById('reboundChartContainer')) document.getElementById('reboundChartContainer').style.display = isRebound ? 'block' : 'none';
       
-      document.getElementById('signalsList').style.display = (!isNew && !isClosing && !isTomorrow) ? 'block' : 'none';
-      document.getElementById('newSignalsList').style.display = isNew ? 'block' : 'none';
-      if (document.getElementById('closingSignalsList')) document.getElementById('closingSignalsList').style.display = isClosing ? 'block' : 'none';
-      if (document.getElementById('tomorrowSignalsList')) document.getElementById('tomorrowSignalsList').style.display = isTomorrow ? 'block' : 'none';
+      document.getElementById('signalsList').style.display = isMain ? 'block' : 'none';
+      if(document.getElementById('newSignalsList')) document.getElementById('newSignalsList').style.display = isNew ? 'block' : 'none';
+      if(document.getElementById('closingSignalsList')) document.getElementById('closingSignalsList').style.display = isClosing ? 'block' : 'none';
+      if(document.getElementById('tomorrowSignalsList')) document.getElementById('tomorrowSignalsList').style.display = isTomorrow ? 'block' : 'none';
+      if(document.getElementById('reboundSignalsList')) document.getElementById('reboundSignalsList').style.display = isRebound ? 'block' : 'none';
       
-      if(document.getElementById('signalLegend')) document.getElementById('signalLegend').style.display = (!isNew && !isClosing && !isTomorrow) ? 'flex' : 'none';
+      if(document.getElementById('signalLegend')) document.getElementById('signalLegend').style.display = isMain ? 'flex' : 'none';
       if(document.getElementById('newSignalLegend')) document.getElementById('newSignalLegend').style.display = isNew ? 'flex' : 'none';
       if(document.getElementById('closingSignalLegend')) document.getElementById('closingSignalLegend').style.display = isClosing ? 'flex' : 'none';
       if(document.getElementById('tomorrowSignalLegend')) document.getElementById('tomorrowSignalLegend').style.display = isTomorrow ? 'flex' : 'none';
+      if(document.getElementById('reboundSignalLegend')) document.getElementById('reboundSignalLegend').style.display = isRebound ? 'flex' : 'none';
 
-      const strategyCard = document.querySelector('.strategy-card:not(.closing-strategy):not(.tomorrow-strategy)');
+      const strategyCard = document.querySelector('.strategy-card:not(.closing-strategy):not(.tomorrow-strategy):not(.rebound-strategy)');
       const closingStrategyCard = document.getElementById('closingStrategyCard');
       const tomorrowStrategyCard = document.getElementById('tomorrowStrategyCard');
-      if (strategyCard) strategyCard.style.display = (isClosing || isTomorrow) ? 'none' : 'block';
+      const reboundStrategyCard = document.getElementById('reboundStrategyCard');
+      
+      if (strategyCard) strategyCard.style.display = isMain ? 'block' : 'none';
       if (closingStrategyCard) closingStrategyCard.style.display = isClosing ? 'block' : 'none';
       if (tomorrowStrategyCard) tomorrowStrategyCard.style.display = isTomorrow ? 'block' : 'none';
+      if (reboundStrategyCard) reboundStrategyCard.style.display = isRebound ? 'block' : 'none';
 
       if (tab.dataset.tab === 'history') loadHistory();
     });

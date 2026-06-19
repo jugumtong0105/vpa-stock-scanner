@@ -51,6 +51,7 @@
         <button class="sidebar-tab" data-tab="newscan" style="color:#e056fd">🚀 신규 조건검색</button>
         <button class="sidebar-tab" data-tab="closing" style="color:#f0932b">💵 종가베팅(신고가)</button>
         <button class="sidebar-tab" data-tab="tomorrow" style="color:#10b981">🌪️ 내일급등(수렴)</button>
+        <button class="sidebar-tab" data-tab="rebound" style="color:#3b82f6">📈 60일선 반등(N자)</button>
       </div>
 
       <!-- TAB 1: Scan -->
@@ -151,6 +152,26 @@
           <div class="empty-state"><span>🌪️</span><p><strong>[내일급등 스캔]</strong> 버튼으로<br>폭풍 전야의 이평 수렴 + 볼밴 밀집 종목을 찾으세요!</p></div>
         </div>
       </div>
+
+      <!-- TAB 6: Rebound Scan (60일선 N자 반등) -->
+      <div class="tab-content" id="tabRebound" style="display:none">
+        <div class="sidebar-header">
+          <button class="btn-scan" id="btnReboundScan" style="width:100%; background:linear-gradient(135deg, #3b82f6, #2563eb); margin-bottom:10px;">
+            <span>📈</span> <span id="btnReboundScanText">60일선 반등 스캔</span>
+          </button>
+          <div class="scan-status" id="reboundScanStatus">
+            <span class="status-dot idle rebound-status-dot"></span>
+            <span id="reboundStatusText">스캔 대기 중</span>
+          </div>
+        </div>
+        <div class="scan-progress-wrap" id="reboundScanProgressWrap" style="display:none">
+          <div class="progress-bar"><div class="progress-fill" id="reboundProgressFill" style="background:#3b82f6"></div></div>
+          <span class="progress-text" id="reboundProgressText">0 / 0</span>
+        </div>
+        <div class="match-results" id="reboundMatchResults">
+          <div class="empty-state"><span>📈</span><p><strong>[60일선 반등 스캔]</strong> 버튼으로<br>60일선 우상향 + N자 반등 타점을 찾으세요!</p></div>
+        </div>
+      </div>
     </aside>
 
     <!-- Center - Chart -->
@@ -186,6 +207,9 @@
       <!-- Tomorrow Scanner Chart Container -->
       <div class="chart-container" id="tomorrowChartContainer" style="display:none">
       </div>
+      <!-- Rebound Scanner Chart Container -->
+      <div class="chart-container" id="reboundChartContainer" style="display:none">
+      </div>
 
       <div class="signal-legend" id="signalLegend" style="display:none">
         <span class="legend-item"><span class="dot volume"></span> ①기준봉</span>
@@ -213,6 +237,12 @@
         <span class="legend-item"><span class="dot" style="background:#f0c040"></span> MA5</span>
         <span class="legend-item"><span class="dot" style="background:#00d4ff"></span> MA20</span>
         <span class="legend-item"><span class="dot" style="background:rgba(236,72,153,0.6)"></span> 볼린저밴드</span>
+      </div>
+      <div class="signal-legend" id="reboundSignalLegend" style="display:none">
+        <span class="legend-item"><span class="dot buy" style="background:#3b82f6"></span> 💎N자반등</span>
+        <span class="legend-item"><span class="dot" style="background:#f0c040"></span> MA10</span>
+        <span class="legend-item"><span class="dot" style="background:#00d4ff"></span> MA20</span>
+        <span class="legend-item"><span class="dot" style="background:#e056fd"></span> MA60</span>
       </div>
     </section>
 
@@ -285,6 +315,13 @@
             <p>매칭 종목을 클릭하면<br>상세 정보가 표시됩니다</p>
           </div>
         </div>
+        <!-- Rebound Scanner Signals List -->
+        <div class="signals-list" id="reboundSignalsList" style="display:none">
+          <div class="empty-state">
+            <span>📭</span>
+            <p>매칭 종목을 클릭하면<br>상세 정보가 표시됩니다</p>
+          </div>
+        </div>
       </div>
 
       <!-- Strategy -->
@@ -319,6 +356,17 @@
           <div class="step"><span class="step-num" style="background:#10b981">4</span><span><b>폭풍 전야:</b> 전일 대비 거래량이 급감한 단봉 캔들 확인</span></div>
         </div>
       </div>
+      
+      <!-- Rebound Strategy -->
+      <div class="panel-card strategy-card rebound-strategy" id="reboundStrategyCard" style="display:none">
+        <h3 style="color:#3b82f6">📖 60일선 N자 반등 전략</h3>
+        <div class="strategy-steps">
+          <div class="step"><span class="step-num" style="background:#3b82f6">1</span><span><b>추세 확인:</b> 60일선 우상향 (현재 주가 > 60일전 주가)</span></div>
+          <div class="step"><span class="step-num" style="background:#3b82f6">2</span><span><b>골든 크로스:</b> 10일선/20일선이 60일선 데드크로스 후 다시 돌파</span></div>
+          <div class="step"><span class="step-num" style="background:#3b82f6">3</span><span><b>모멘텀 확인:</b> MACD가 0선 위에 위치하여 상승세 검증</span></div>
+          <div class="step"><span class="step-num" style="background:#ff4757">4</span><span style="color:#ff4757"><b>주의:</b> 반등 실패로 60일선을 다시 깨면 손절 고려</span></div>
+        </div>
+      </div>
     </aside>
   </main>
 
@@ -332,5 +380,6 @@
   <script src="/js/new-scanner.js"></script>
   <script src="/js/closing-scanner.js"></script>
   <script src="/js/tomorrow-scanner.js"></script>
+  <script src="/js/rebound-scanner.js"></script>
 </body>
 </html>
