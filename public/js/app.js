@@ -455,7 +455,8 @@ document.addEventListener('DOMContentLoaded',()=>{
         'newscan': 'tabNewScan',
         'closing': 'tabClosing',
         'tomorrow': 'tabTomorrow',
-        'rebound': 'tabRebound'
+        'rebound': 'tabRebound',
+        'minervini': 'tabMinervini'
       };
       const target = targetMap[tab.dataset.tab] || 'tabScan';
       const el = document.getElementById(target);
@@ -466,36 +467,42 @@ document.addEventListener('DOMContentLoaded',()=>{
       const isClosing = tab.dataset.tab === 'closing';
       const isTomorrow = tab.dataset.tab === 'tomorrow';
       const isRebound = tab.dataset.tab === 'rebound';
+      const isMinervini = tab.dataset.tab === 'minervini';
 
-      const isMain = !isNew && !isClosing && !isTomorrow && !isRebound;
+      const isMain = !isNew && !isClosing && !isTomorrow && !isRebound && !isMinervini;
 
       document.getElementById('chartContainer').style.display = isMain ? 'block' : 'none';
       if(document.getElementById('newChartContainer')) document.getElementById('newChartContainer').style.display = isNew ? 'block' : 'none';
       if(document.getElementById('closingChartContainer')) document.getElementById('closingChartContainer').style.display = isClosing ? 'block' : 'none';
       if(document.getElementById('tomorrowChartContainer')) document.getElementById('tomorrowChartContainer').style.display = isTomorrow ? 'block' : 'none';
       if(document.getElementById('reboundChartContainer')) document.getElementById('reboundChartContainer').style.display = isRebound ? 'block' : 'none';
+      if(document.getElementById('minerviniChartContainer')) document.getElementById('minerviniChartContainer').style.display = isMinervini ? 'block' : 'none';
       
       document.getElementById('signalsList').style.display = isMain ? 'block' : 'none';
       if(document.getElementById('newSignalsList')) document.getElementById('newSignalsList').style.display = isNew ? 'block' : 'none';
       if(document.getElementById('closingSignalsList')) document.getElementById('closingSignalsList').style.display = isClosing ? 'block' : 'none';
       if(document.getElementById('tomorrowSignalsList')) document.getElementById('tomorrowSignalsList').style.display = isTomorrow ? 'block' : 'none';
       if(document.getElementById('reboundSignalsList')) document.getElementById('reboundSignalsList').style.display = isRebound ? 'block' : 'none';
+      if(document.getElementById('minerviniSignalsList')) document.getElementById('minerviniSignalsList').style.display = isMinervini ? 'block' : 'none';
       
       if(document.getElementById('signalLegend')) document.getElementById('signalLegend').style.display = isMain ? 'flex' : 'none';
       if(document.getElementById('newSignalLegend')) document.getElementById('newSignalLegend').style.display = isNew ? 'flex' : 'none';
       if(document.getElementById('closingSignalLegend')) document.getElementById('closingSignalLegend').style.display = isClosing ? 'flex' : 'none';
       if(document.getElementById('tomorrowSignalLegend')) document.getElementById('tomorrowSignalLegend').style.display = isTomorrow ? 'flex' : 'none';
       if(document.getElementById('reboundSignalLegend')) document.getElementById('reboundSignalLegend').style.display = isRebound ? 'flex' : 'none';
+      if(document.getElementById('minerviniSignalLegend')) document.getElementById('minerviniSignalLegend').style.display = isMinervini ? 'flex' : 'none';
 
-      const strategyCard = document.querySelector('.strategy-card:not(.closing-strategy):not(.tomorrow-strategy):not(.rebound-strategy)');
+      const strategyCard = document.querySelector('.strategy-card:not(.closing-strategy):not(.tomorrow-strategy):not(.rebound-strategy):not(.minervini-strategy)');
       const closingStrategyCard = document.getElementById('closingStrategyCard');
       const tomorrowStrategyCard = document.getElementById('tomorrowStrategyCard');
       const reboundStrategyCard = document.getElementById('reboundStrategyCard');
+      const minerviniStrategyCard = document.getElementById('minerviniStrategyCard');
       
       if (strategyCard) strategyCard.style.display = isMain ? 'block' : 'none';
       if (closingStrategyCard) closingStrategyCard.style.display = isClosing ? 'block' : 'none';
       if (tomorrowStrategyCard) tomorrowStrategyCard.style.display = isTomorrow ? 'block' : 'none';
       if (reboundStrategyCard) reboundStrategyCard.style.display = isRebound ? 'block' : 'none';
+      if (minerviniStrategyCard) minerviniStrategyCard.style.display = isMinervini ? 'block' : 'none';
 
       if (tab.dataset.tab === 'history') loadHistory();
     });

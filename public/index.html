@@ -52,6 +52,7 @@
         <button class="sidebar-tab" data-tab="closing" style="color:#f0932b">💵 종가베팅(신고가)</button>
         <button class="sidebar-tab" data-tab="tomorrow" style="color:#10b981">🌪️ 내일급등(수렴)</button>
         <button class="sidebar-tab" data-tab="rebound" style="color:#3b82f6">📈 60일선 반등(N자)</button>
+        <button class="sidebar-tab" data-tab="minervini" style="color:#ec4899">📈 미너비니(추세눌림)</button>
       </div>
 
       <!-- TAB 1: Scan -->
@@ -172,6 +173,26 @@
           <div class="empty-state"><span>📈</span><p><strong>[60일선 반등 스캔]</strong> 버튼으로<br>60일선 우상향 + N자 반등 타점을 찾으세요!</p></div>
         </div>
       </div>
+
+      <!-- TAB 7: Minervini Swing Scan (마크 미너비니) -->
+      <div class="tab-content" id="tabMinervini" style="display:none">
+        <div class="sidebar-header">
+          <button class="btn-scan" id="btnMinerviniScan" style="width:100%; background:linear-gradient(135deg, #ec4899, #be185d); margin-bottom:10px;">
+            <span>📈</span> <span id="btnMinerviniScanText">미너비니 스윙 스캔</span>
+          </button>
+          <div class="scan-status" id="minerviniScanStatus">
+            <span class="status-dot idle minervini-status-dot"></span>
+            <span id="minerviniStatusText">스캔 대기 중</span>
+          </div>
+        </div>
+        <div class="scan-progress-wrap" id="minerviniScanProgressWrap" style="display:none">
+          <div class="progress-bar"><div class="progress-fill" id="minerviniProgressFill" style="background:#ec4899"></div></div>
+          <span class="progress-text" id="minerviniProgressText">0 / 0</span>
+        </div>
+        <div class="match-results" id="minerviniMatchResults">
+          <div class="empty-state"><span>📈</span><p><strong>[미너비니 스윙 스캔]</strong> 버튼으로<br>장기 우상향 + 완벽한 눌림목을 찾으세요!</p></div>
+        </div>
+      </div>
     </aside>
 
     <!-- Center - Chart -->
@@ -210,6 +231,9 @@
       <!-- Rebound Scanner Chart Container -->
       <div class="chart-container" id="reboundChartContainer" style="display:none">
       </div>
+      <!-- Minervini Scanner Chart Container -->
+      <div class="chart-container" id="minerviniChartContainer" style="display:none">
+      </div>
 
       <div class="signal-legend" id="signalLegend" style="display:none">
         <span class="legend-item"><span class="dot volume"></span> ①기준봉</span>
@@ -243,6 +267,13 @@
         <span class="legend-item"><span class="dot" style="background:#f0c040"></span> MA10</span>
         <span class="legend-item"><span class="dot" style="background:#00d4ff"></span> MA20</span>
         <span class="legend-item"><span class="dot" style="background:#e056fd"></span> MA60</span>
+      </div>
+      <div class="signal-legend" id="minerviniSignalLegend" style="display:none">
+        <span class="legend-item"><span class="dot buy" style="background:#10b981"></span> 🔥반등컨펌</span>
+        <span class="legend-item"><span class="dot" style="background:#f0c040"></span> EMA20</span>
+        <span class="legend-item"><span class="dot" style="background:#00d4ff"></span> EMA50</span>
+        <span class="legend-item"><span class="dot" style="background:#9ca3af"></span> EMA150</span>
+        <span class="legend-item"><span class="dot" style="background:#e056fd"></span> EMA200</span>
       </div>
     </section>
 
@@ -322,6 +353,13 @@
             <p>매칭 종목을 클릭하면<br>상세 정보가 표시됩니다</p>
           </div>
         </div>
+        <!-- Minervini Scanner Signals List -->
+        <div class="signals-list" id="minerviniSignalsList" style="display:none">
+          <div class="empty-state">
+            <span>📭</span>
+            <p>매칭 종목을 클릭하면<br>상세 정보가 표시됩니다</p>
+          </div>
+        </div>
       </div>
 
       <!-- Strategy -->
@@ -367,6 +405,17 @@
           <div class="step"><span class="step-num" style="background:#ff4757">4</span><span style="color:#ff4757"><b>주의:</b> 반등 실패로 60일선을 다시 깨면 손절 고려</span></div>
         </div>
       </div>
+
+      <!-- Minervini Strategy -->
+      <div class="panel-card strategy-card minervini-strategy" id="minerviniStrategyCard" style="display:none">
+        <h3 style="color:#ec4899">📖 마크 미너비니 눌림목 전략</h3>
+        <div class="strategy-steps">
+          <div class="step"><span class="step-num" style="background:#ec4899">1</span><span><b>장기 추세:</b> 150/200일 지수이평(EMA) 정배열 및 우상향</span></div>
+          <div class="step"><span class="step-num" style="background:#ec4899">2</span><span><b>단기 눌림:</b> 주가가 상승 후 20일/50일 이평선 부근으로 하락</span></div>
+          <div class="step"><span class="step-num" style="background:#ec4899">3</span><span><b>지지 확인:</b> 예측 매수 금지. 20/50선에서 하락 멈춤 관찰</span></div>
+          <div class="step"><span class="step-num" style="background:#10b981">4</span><span style="color:#10b981"><b>반등 컨펌:</b> 전일 음봉을 압도하는 뚜렷한 양봉 발생 시 매수</span></div>
+        </div>
+      </div>
     </aside>
   </main>
 
@@ -381,5 +430,6 @@
   <script src="/js/closing-scanner.js"></script>
   <script src="/js/tomorrow-scanner.js"></script>
   <script src="/js/rebound-scanner.js"></script>
+  <script src="/js/minervini-scanner.js"></script>
 </body>
 </html>
