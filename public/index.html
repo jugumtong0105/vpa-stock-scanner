@@ -53,6 +53,7 @@
         <button class="sidebar-tab" data-tab="tomorrow" style="color:#10b981">🌪️ 내일급등(수렴)</button>
         <button class="sidebar-tab" data-tab="rebound" style="color:#3b82f6">📈 60일선 반등(N자)</button>
         <button class="sidebar-tab" data-tab="minervini" style="color:#ec4899">📈 미너비니(추세눌림)</button>
+        <button class="sidebar-tab" data-tab="vcp" style="color:#fcd34d">🏆 VCP 마스터</button>
       </div>
 
       <!-- TAB 1: Scan -->
@@ -193,6 +194,25 @@
           <div class="empty-state"><span>📈</span><p><strong>[미너비니 스윙 스캔]</strong> 버튼으로<br>장기 우상향 + 완벽한 눌림목을 찾으세요!</p></div>
         </div>
       </div>
+
+      <!-- TAB 8: VCP Master Scan -->
+      <div class="tab-content" id="tabVcp" style="display:none">
+        <div class="sidebar-header">
+          <button class="btn-scan" id="btnVcpScan" style="width:100%; background:linear-gradient(135deg, #f59e0b, #d97706); margin-bottom:10px;">
+            <span>🏆</span> <span id="btnVcpScanText">VCP 종합 스캔</span>
+          </button>
+          <div class="scan-status" id="vcpScanStatus">
+            <span class="status-dot idle"></span>
+            <span id="vcpStatusText">스캔 대기 중</span>
+          </div>
+        </div>
+        <div class="match-results" style="border:none; padding:10px; background:none;">
+          <p style="color:#9ca3af; font-size:13px; text-align:center;">VCP 스캐너 결과는 중앙의 데이터 표에 표시됩니다.</p>
+          <button class="btn-scan" id="btnVcpCsv" style="width:100%; margin-top:20px; background:#4b5563; font-size:14px; padding:8px;">
+            <span>💾</span> CSV 다운로드
+          </button>
+        </div>
+      </div>
     </aside>
 
     <!-- Center - Chart -->
@@ -233,6 +253,28 @@
       </div>
       <!-- Minervini Scanner Chart Container -->
       <div class="chart-container" id="minerviniChartContainer" style="display:none">
+      </div>
+      <!-- VCP Master Data Table Container -->
+      <div class="chart-container" id="vcpTableContainer" style="display:none; overflow-y:auto; padding:0;">
+        <table class="vcp-table" style="width:100%; border-collapse:collapse; text-align:right;">
+          <thead style="position:sticky; top:0; background:#1f2937; color:#9ca3af; font-size:12px; border-bottom:1px solid #374151;">
+            <tr>
+              <th style="padding:10px; text-align:left;" class="vcp-th" data-col="name">종목명 ↕</th>
+              <th style="padding:10px;" class="vcp-th" data-col="price">현재가 ↕</th>
+              <th style="padding:10px;" class="vcp-th" data-col="changeRate">등락률 ↕</th>
+              <th style="padding:10px;" class="vcp-th" data-col="tradingValue">대금 ↕</th>
+              <th style="padding:10px;" class="vcp-th" data-col="score">총점 ↕</th>
+              <th style="padding:10px;">등급</th>
+              <th style="padding:10px;">점수(Tr/Vo/Vc)</th>
+              <th style="padding:10px;">목표가</th>
+              <th style="padding:10px;">손절가(MA50)</th>
+              <th style="padding:10px;">저장</th>
+            </tr>
+          </thead>
+          <tbody id="vcpResultsBody">
+            <tr><td colspan="10" style="text-align:center; padding:50px; color:#6b7280;">좌측에서 [VCP 종합 스캔] 버튼을 눌러주세요.</td></tr>
+          </tbody>
+        </table>
       </div>
 
       <div class="signal-legend" id="signalLegend" style="display:none">
@@ -360,6 +402,13 @@
             <p>매칭 종목을 클릭하면<br>상세 정보가 표시됩니다</p>
           </div>
         </div>
+        <!-- VCP Scanner Signals List (Hidden essentially) -->
+        <div class="signals-list" id="vcpSignalsList" style="display:none">
+          <div class="empty-state">
+            <span>📊</span>
+            <p>결과는 중앙 데이터 표에서<br>확인 가능합니다.</p>
+          </div>
+        </div>
       </div>
 
       <!-- Strategy -->
@@ -416,6 +465,17 @@
           <div class="step"><span class="step-num" style="background:#10b981">4</span><span style="color:#10b981"><b>반등 컨펌:</b> 전일 음봉을 압도하는 뚜렷한 양봉 발생 시 매수</span></div>
         </div>
       </div>
+
+      <!-- VCP Strategy -->
+      <div class="panel-card strategy-card vcp-strategy" id="vcpStrategyCard" style="display:none">
+        <h3 style="color:#f59e0b">📖 VCP 종합 퀀트 스코어링</h3>
+        <div class="strategy-steps">
+          <div class="step"><span class="step-num" style="background:#f59e0b">1</span><span><b>추세(Trend):</b> 정배열, MA200 상승, 52주 신고가 근접도</span></div>
+          <div class="step"><span class="step-num" style="background:#f59e0b">2</span><span><b>수급(Volume):</b> 최근 거래량 축소 후 당일 100억 대금 폭발</span></div>
+          <div class="step"><span class="step-num" style="background:#f59e0b">3</span><span><b>변동성(VCP):</b> 최근 20일간 점진적 변동폭 축소 패턴</span></div>
+          <div class="step"><span class="step-num" style="background:#f59e0b">4</span><span><b>안정성(Risk):</b> WMA5/20 크로스 및 손익비(RR) 기반 리스크 계산</span></div>
+        </div>
+      </div>
     </aside>
   </main>
 
@@ -431,5 +491,6 @@
   <script src="/js/tomorrow-scanner.js"></script>
   <script src="/js/rebound-scanner.js"></script>
   <script src="/js/minervini-scanner.js"></script>
+  <script src="/js/vcp-scanner.js"></script>
 </body>
 </html>
