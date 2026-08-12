@@ -182,6 +182,15 @@
     document.getElementById('dojiStrategyCard').style.display = 'block';
   }
 
+  function hideDojiUi() {
+    const chart = document.getElementById('dojiChartContainer');
+    const signals = document.getElementById('dojiSignalsList');
+    const strategy = document.getElementById('dojiStrategyCard');
+    if (chart) chart.style.display = 'none';
+    if (signals) signals.style.display = 'none';
+    if (strategy) strategy.style.display = 'none';
+  }
+
   function injectUi() {
     document.querySelector('.sidebar-tabs').insertAdjacentHTML('beforeend', '<button class="sidebar-tab" data-tab="doji" style="color:#22c55e">🌅 도지반전</button>');
     document.getElementById('sidebar').insertAdjacentHTML('beforeend', `<div class="tab-content" id="tabDoji" style="display:none"><div class="sidebar-header"><button class="btn-scan" id="btnDojiScan" style="width:100%;background:linear-gradient(135deg,#22c55e,#15803d);margin-bottom:10px"><span>🌅</span> <span>도지 반전 스캔</span></button><div class="scan-status"><span class="status-dot idle"></span><span id="dojiStatusText">스캔 대기 중</span></div></div><div class="scan-progress-wrap" id="dojiProgressWrap" style="display:none"><div class="progress-bar"><div class="progress-fill" id="dojiProgressFill" style="background:${COLOR}"></div></div><span class="progress-text" id="dojiProgressText">0 / 0</span></div><div class="param-group" style="padding:8px 12px;font-size:11px"><label>장대음봉 최소 <input id="dojiBearPct" type="number" min="2" max="15" step=".5" value="4" style="width:48px">%</label><label>도지 실체비율 최대 <input id="dojiRatio" type="number" min="5" max="30" step="1" value="15" style="width:48px">%</label><label>장대양봉 최소 <input id="dojiBullPct" type="number" min="2" max="15" step=".5" value="4" style="width:48px">%</label><label>최근 <input id="dojiRecentDays" type="number" min="1" max="20" value="5" style="width:48px">거래일</label></div><div class="match-results" id="dojiMatchResults"><div class="empty-state"><span>🌅</span><p><strong>[도지 반전 스캔]</strong> 버튼으로<br>장대음봉 → 도지 → 장대양봉 종목을 찾으세요.</p></div></div></div>`);
@@ -192,6 +201,9 @@
     // 기존 app.js의 공통 탭 처리보다 마지막에 실행해 새 탭 상태를 확정한다.
     tabButton.addEventListener('click', () => setTimeout(showDojiTab, 0));
     document.getElementById('btnDojiScan').addEventListener('click', runScan);
+    document.querySelectorAll('.sidebar-tab:not([data-tab="doji"])').forEach(tab => {
+      tab.addEventListener('click', hideDojiUi);
+    });
   }
 
   window.analyzeDojiReversal = analyzeDojiReversal;
