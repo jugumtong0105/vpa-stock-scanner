@@ -1,0 +1,55 @@
+.hamburger-sidebar-head{display:flex;flex-direction:column;gap:10px}
+.hamburger-alert-button{width:100%;justify-content:center;background:linear-gradient(135deg,#ff9f43,#ff6b35);color:#14100c}
+.hamburger-alert-button.enabled{background:linear-gradient(135deg,#2ed573,#00b894)}
+.hamburger-mini-summary{display:flex;justify-content:space-between;padding:8px 14px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);font-size:11px;color:var(--text-secondary)}
+.hamburger-mini-summary b,.hamburger-mini-summary span:last-child{color:#ff9f43}
+.hamburger-match-item::before{background:#ff9f43}
+.hamburger-match-item .match-signal-date{color:#ff9f43}
+
+.hamburger-board{overflow-y:auto!important;padding:18px;background:radial-gradient(circle at 75% 5%,rgba(255,159,67,.14),transparent 30%),var(--bg-primary)}
+.hamburger-hero{display:flex;justify-content:space-between;gap:24px;align-items:center;padding:22px 24px;border:1px solid rgba(255,159,67,.3);border-radius:14px;background:linear-gradient(135deg,rgba(255,159,67,.12),rgba(255,107,53,.04))}
+.hamburger-eyebrow{font-size:10px!important;letter-spacing:1.6px;color:#ff9f43!important;font-weight:800;margin-bottom:6px}
+.hamburger-hero h2{font-size:23px;margin-bottom:7px}
+.hamburger-hero p{font-size:12px;color:var(--text-secondary);line-height:1.6}
+.hamburger-clock{min-width:145px;text-align:right}
+.hamburger-clock span{display:block;font-size:10px;color:var(--text-muted);margin-bottom:4px}
+.hamburger-clock strong{font-size:28px;color:#ff9f43;font-variant-numeric:tabular-nums}
+.hamburger-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+.hamburger-metrics>div{padding:13px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px}
+.hamburger-metrics span{display:block;font-size:10px;color:var(--text-muted);margin-bottom:6px}
+.hamburger-metrics strong{font-size:15px}
+.hamburger-notice{padding:10px 13px;margin-bottom:12px;border-left:3px solid #ff9f43;background:rgba(255,159,67,.08);font-size:11px;color:var(--text-secondary);border-radius:4px}
+.hamburger-table-wrap{overflow:auto;border:1px solid var(--border);border-radius:10px;background:var(--bg-card)}
+.hamburger-table{width:100%;border-collapse:collapse;font-size:12px}
+.hamburger-table th{padding:10px 12px;text-align:right;color:var(--text-muted);font-size:10px;background:var(--bg-elevated);border-bottom:1px solid var(--border);white-space:nowrap}
+.hamburger-table th:first-child,.hamburger-table td:first-child{text-align:left}
+.hamburger-table td{padding:11px 12px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
+.hamburger-table tbody tr:last-child td{border-bottom:none}
+.hamburger-table tbody tr:hover{background:rgba(255,159,67,.06)}
+.hamburger-stock-link{color:var(--text-primary);text-decoration:none;font-weight:700}
+.hamburger-stock-link:hover{color:#ff9f43}
+.hamburger-value{color:#ff9f43;font-weight:800}
+.hamburger-pass{padding:3px 7px;border-radius:12px;background:rgba(46,213,115,.13);color:#2ed573;font-size:10px;font-weight:700}
+.hamburger-empty-row{text-align:center!important;color:var(--text-muted);padding:40px!important}
+.hamburger-leaders{margin-top:14px;padding:14px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px}
+.hamburger-leaders h3{font-size:12px;margin-bottom:12px}
+.hamburger-leaders h3 span{font-size:9px;color:var(--text-muted);font-weight:400;margin-left:6px}
+.hamburger-leader-bars{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px}
+.hamburger-leader{display:grid;grid-template-columns:95px 1fr 62px;gap:8px;align-items:center;font-size:10px}
+.hamburger-leader-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hamburger-bar{height:5px;border-radius:5px;background:var(--border);overflow:hidden}
+.hamburger-bar span{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,#ff9f43,#ff6b35)}
+.hamburger-leader-value{text-align:right;color:var(--text-secondary);font-variant-numeric:tabular-nums}
+.hamburger-help{font-size:11px;line-height:1.65;color:var(--text-secondary);padding:4px}
+.hamburger-help strong{display:block;color:#ff9f43;font-size:12px;margin-bottom:8px}
+.hamburger-help p+p{margin-top:8px}
+.hamburger-step{background:rgba(255,159,67,.15)!important;color:#ff9f43!important}
+
+@media(max-width:850px){
+  .hamburger-board{padding:10px;min-height:620px}
+  .hamburger-hero{align-items:flex-start;padding:16px;flex-direction:column}
+  .hamburger-clock{text-align:left}
+  .hamburger-metrics{grid-template-columns:repeat(2,1fr)}
+  .hamburger-leader-bars{grid-template-columns:1fr}
+  .hamburger-table{min-width:680px}
+}

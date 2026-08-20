@@ -457,7 +457,8 @@ document.addEventListener('DOMContentLoaded',()=>{
         'tomorrow': 'tabTomorrow',
         'rebound': 'tabRebound',
         'minervini': 'tabMinervini',
-        'vcp': 'tabVcp'
+        'vcp': 'tabVcp',
+        'hamburger': 'tabHamburger'
       };
       const target = targetMap[tab.dataset.tab] || 'tabScan';
       const el = document.getElementById(target);
@@ -470,8 +471,9 @@ document.addEventListener('DOMContentLoaded',()=>{
       const isRebound = tab.dataset.tab === 'rebound';
       const isMinervini = tab.dataset.tab === 'minervini';
       const isVcp = tab.dataset.tab === 'vcp';
+      const isHamburger = tab.dataset.tab === 'hamburger';
 
-      const isMain = !isNew && !isClosing && !isTomorrow && !isRebound && !isMinervini && !isVcp;
+      const isMain = !isNew && !isClosing && !isTomorrow && !isRebound && !isMinervini && !isVcp && !isHamburger;
 
       document.getElementById('chartContainer').style.display = isMain ? 'block' : 'none';
       if(document.getElementById('newChartContainer')) document.getElementById('newChartContainer').style.display = isNew ? 'block' : 'none';
@@ -480,6 +482,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       if(document.getElementById('reboundChartContainer')) document.getElementById('reboundChartContainer').style.display = isRebound ? 'block' : 'none';
       if(document.getElementById('minerviniChartContainer')) document.getElementById('minerviniChartContainer').style.display = isMinervini ? 'block' : 'none';
       if(document.getElementById('vcpTableContainer')) document.getElementById('vcpTableContainer').style.display = isVcp ? 'block' : 'none';
+      if(document.getElementById('hamburgerContainer')) document.getElementById('hamburgerContainer').style.display = isHamburger ? 'block' : 'none';
       
       document.getElementById('signalsList').style.display = isMain ? 'block' : 'none';
       if(document.getElementById('newSignalsList')) document.getElementById('newSignalsList').style.display = isNew ? 'block' : 'none';
@@ -488,6 +491,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       if(document.getElementById('reboundSignalsList')) document.getElementById('reboundSignalsList').style.display = isRebound ? 'block' : 'none';
       if(document.getElementById('minerviniSignalsList')) document.getElementById('minerviniSignalsList').style.display = isMinervini ? 'block' : 'none';
       if(document.getElementById('vcpSignalsList')) document.getElementById('vcpSignalsList').style.display = isVcp ? 'block' : 'none';
+      if(document.getElementById('hamburgerSignalsList')) document.getElementById('hamburgerSignalsList').style.display = isHamburger ? 'block' : 'none';
       
       if(document.getElementById('signalLegend')) document.getElementById('signalLegend').style.display = isMain ? 'flex' : 'none';
       if(document.getElementById('newSignalLegend')) document.getElementById('newSignalLegend').style.display = isNew ? 'flex' : 'none';
@@ -498,12 +502,13 @@ document.addEventListener('DOMContentLoaded',()=>{
 
       // VCP는 signal legend가 없음
       
-      const strategyCard = document.querySelector('.strategy-card:not(.closing-strategy):not(.tomorrow-strategy):not(.rebound-strategy):not(.minervini-strategy):not(.vcp-strategy)');
+      const strategyCard = document.querySelector('.strategy-card:not(.closing-strategy):not(.tomorrow-strategy):not(.rebound-strategy):not(.minervini-strategy):not(.vcp-strategy):not(.hamburger-strategy)');
       const closingStrategyCard = document.getElementById('closingStrategyCard');
       const tomorrowStrategyCard = document.getElementById('tomorrowStrategyCard');
       const reboundStrategyCard = document.getElementById('reboundStrategyCard');
       const minerviniStrategyCard = document.getElementById('minerviniStrategyCard');
       const vcpStrategyCard = document.getElementById('vcpStrategyCard');
+      const hamburgerStrategyCard = document.getElementById('hamburgerStrategyCard');
       
       if (strategyCard) strategyCard.style.display = isMain ? 'block' : 'none';
       if (closingStrategyCard) closingStrategyCard.style.display = isClosing ? 'block' : 'none';
@@ -511,10 +516,13 @@ document.addEventListener('DOMContentLoaded',()=>{
       if (reboundStrategyCard) reboundStrategyCard.style.display = isRebound ? 'block' : 'none';
       if (minerviniStrategyCard) minerviniStrategyCard.style.display = isMinervini ? 'block' : 'none';
       if (vcpStrategyCard) vcpStrategyCard.style.display = isVcp ? 'block' : 'none';
+      if (hamburgerStrategyCard) hamburgerStrategyCard.style.display = isHamburger ? 'block' : 'none';
+      const paramsCard = document.getElementById('paramsCard');
+      if (paramsCard) paramsCard.style.display = isHamburger ? 'none' : 'block';
 
       // Hide stock info bar for VCP as it uses table header
       const stockInfoBar = document.getElementById('stockInfoBar');
-      if (stockInfoBar) stockInfoBar.style.display = isVcp ? 'none' : 'flex';
+      if (stockInfoBar) stockInfoBar.style.display = (isVcp || isHamburger) ? 'none' : 'flex';
 
       if (tab.dataset.tab === 'history') loadHistory();
     });
