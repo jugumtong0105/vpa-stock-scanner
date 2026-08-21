@@ -8,6 +8,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 const UA = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' };
 const SIGNALS_FILE = path.join(__dirname, 'data', 'signals.json');
+const alphaSectorCache = new Map();
 
 // 시그널 파일 초기화
 function ensureDataDir() {
@@ -87,6 +88,29 @@ app.get('/api/stocklist', async (req, res) => {
     console.log(`✅ 종목 ${all.length}개 로딩 완료`);
     res.json({ success: true, count: all.length, stocks: all });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// 알파 프라임 업종 정보 (종목 페이지의 동일업종 링크)
+app.get('/api/alpha-prime/sectors', async (req, res) => {
+  const codes = String(req.query.codes || '').split(',').filter(code => /^\d{6}$/.test(code)).slice(0, 20);
+  try {
+    const rows = await Promise.all(codes.map(async code => {
+      if (alphaSectorCache.has(code)) return { code, sector: alphaSectorCache.get(code) };
+      const response = await fetch(`https://finance.naver.com/item/main.naver?code=${code}`, {
+        headers: { ...UA, 'Accept-Language': 'ko' }
+      });
+      if (!response.ok) throw new Error(`업종 응답 ${response.status}`);
+      const html = new TextDecoder('utf-8').decode(await response.arrayBuffer());
+      const match = html.match(/sise_group_detail\.naver\?type=upjong&amp;no=\d+[^>]*>([^<]+)<\/a>/i)
+        || html.match(/sise_group_detail\.naver\?type=upjong&no=\d+[^>]*>([^<]+)<\/a>/i);
+      const sector = match?.[1]?.replace(/&amp;/g, '&').trim() || '업종 미분류';
+      alphaSectorCache.set(code, sector);
+      return { code, sector };
+    }));
+    res.json({ success: true, rows });
+  } catch (error) {
+    res.status(502).json({ success: false, error: error.message });
+  }
 });
 
 // ===== 햄버거 거래대금 알림: 30억원 이상 + 최근 20개 3분봉 중앙값의 5배 =====

@@ -35,6 +35,10 @@ function emptyMemory(date = '') {
 
 let memory = emptyMemory();
 
+function resetMemoryForTests(date = '') {
+  memory = emptyMemory(date);
+}
+
 function stripHtml(value) {
   return value
     .replace(/<script[\s\S]*?<\/script>/gi, '')
@@ -455,5 +459,6 @@ module.exports = {
   getBarInfo,
   isKrxMarketOpen,
   fetchMarketLeaders,
-  getHamburgerStatus
+  getHamburgerStatus,
+  resetMemoryForTests
 };

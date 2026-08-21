@@ -191,8 +191,9 @@
     $('btnHamburgerAlert').addEventListener('click', enableAlerts);
     document.querySelectorAll('.sidebar-tab').forEach(tab => tab.addEventListener('click', () => {
       const isHamburger = tab.dataset.tab === 'hamburger';
-      $('btnScan').style.display = isHamburger ? 'none' : 'flex';
-      $('modeToggle').style.display = isHamburger ? 'none' : 'flex';
+      const isStandalone = isHamburger || tab.dataset.tab === 'alpha';
+      $('btnScan').style.display = isStandalone ? 'none' : 'flex';
+      $('modeToggle').style.display = isStandalone ? 'none' : 'flex';
       if (isHamburger && latest) renderStatus(latest);
     }));
     updateClock();

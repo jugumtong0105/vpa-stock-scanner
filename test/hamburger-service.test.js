@@ -9,7 +9,8 @@ const {
   parseMinuteHistory,
   getDynamicThreshold,
   MIN_TRADING_VALUE_MILLION_WON,
-  RELATIVE_MULTIPLIER
+  RELATIVE_MULTIPLIER,
+  resetMemoryForTests
 } = require('../hamburger-service');
 
 test('네이버 거래량 표에서 누적 거래대금을 백만원 단위로 읽는다', () => {
@@ -84,6 +85,7 @@ test('정규장 상태와 거래일이 모두 맞을 때만 시장이 열린 것
 });
 
 test('30억원·평소 5배·양봉을 포착하고 다음 양봉에서 확인 신호로 승격한다', async () => {
+  resetMemoryForTests('2026-08-24');
   let accumulated = 0;
   let price = 10_000;
   const historyXml = Array.from({ length: 20 }, (_, index) => {

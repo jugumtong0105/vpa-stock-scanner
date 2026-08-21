@@ -10,6 +10,7 @@
   <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/css/hamburger.css?v=20260821b">
+  <link rel="stylesheet" href="/css/alpha-prime.css?v=20260821">
 </head>
 <body>
   <!-- Header -->
@@ -49,6 +50,7 @@
       <div class="sidebar-tabs">
         <button class="sidebar-tab active" data-tab="scan">🎯 매칭종목</button>
         <button class="sidebar-tab" data-tab="hamburger" style="color:#ff9f43">🍔 햄버거 거래대금</button>
+        <button class="sidebar-tab" data-tab="alpha" style="color:#a78bfa">🧭 알파 프라임</button>
         <button class="sidebar-tab" data-tab="history">📈 성과추적</button>
         <button class="sidebar-tab" data-tab="newscan" style="color:#e056fd">🚀 신규 조건검색</button>
         <button class="sidebar-tab" data-tab="closing" style="color:#f0932b">💵 종가베팅(신고가)</button>
@@ -235,6 +237,26 @@
           <div class="empty-state"><span>🍔</span><p>알림을 켜고 사이트를 열어두면<br><strong>장중 모든 3분봉</strong>을 자동 검색합니다.</p></div>
         </div>
       </div>
+
+      <!-- TAB 10: Alpha Prime multi-factor scanner -->
+      <div class="tab-content" id="tabAlphaPrime" style="display:none">
+        <div class="sidebar-header alpha-sidebar-head">
+          <button class="btn-scan alpha-scan-button" id="btnAlphaPrimeScan" type="button">
+            <span>🧭</span> <span id="btnAlphaPrimeScanText">최고 후보 검색</span>
+          </button>
+          <div class="scan-status">
+            <span class="status-dot idle" id="alphaStatusDot"></span>
+            <span id="alphaStatusText">스캔 대기 중</span>
+          </div>
+        </div>
+        <div class="scan-progress-wrap" id="alphaProgressWrap" style="display:none">
+          <div class="progress-bar"><div class="progress-fill alpha-progress" id="alphaProgressFill"></div></div>
+          <span class="progress-text" id="alphaProgressText">0 / 0</span>
+        </div>
+        <div class="match-results alpha-match-results" id="alphaMatchResults">
+          <div class="empty-state"><span>🧭</span><p><strong>[최고 후보 검색]</strong>으로<br>시장 주도주를 종합 평가합니다.</p></div>
+        </div>
+      </div>
     </aside>
 
     <!-- Center - Chart -->
@@ -330,6 +352,21 @@
           <h3>현재 3분봉 급증 배수 <span>종목별 최근 20개 3분봉 중앙값과 비교</span></h3>
           <div id="hamburgerLeaderBars" class="hamburger-leader-bars"></div>
         </div>
+      </div>
+
+      <div class="chart-container alpha-board" id="alphaPrimeContainer" style="display:none">
+        <div class="alpha-hero">
+          <div><p class="alpha-eyebrow">MARKET REGIME × LEADERSHIP × RISK</p><h2>🧭 알파 프라임 종합 검색기</h2><p>수익을 약속하지 않고, 강한 시장의 강한 종목만 찾고 손실 크기부터 계산합니다.</p></div>
+          <div class="alpha-regimes"><div id="alphaRegimeKOSPI"><span>KOSPI</span><strong>확인 전</strong></div><div id="alphaRegimeKOSDAQ"><span>KOSDAQ</span><strong>확인 전</strong></div></div>
+        </div>
+        <div class="alpha-metrics">
+          <div><span>평가 항목</span><strong>6개 팩터 · 100점</strong></div>
+          <div><span>최소 유동성</span><strong>20일 평균 30억원</strong></div>
+          <div><span>선별 후보</span><strong id="alphaMetricCount">0</strong></div>
+          <div><span>데이터 기준일</span><strong id="alphaDataDate">-</strong></div>
+        </div>
+        <div class="alpha-rule">추세 20 · 모멘텀 20 · 시장 대비 상대강도 20 · 거래수급 15 · 타점 15 · 위험 10점. 약세장에서는 점수와 등급이 자동 하향됩니다.</div>
+        <div class="alpha-table-wrap"><table class="alpha-table"><thead><tr><th>종목명</th><th>등급</th><th>점수</th><th>현재 타점</th><th>현재가</th><th>등락률</th><th>60일 상대강도</th><th>거래량</th><th>손절 기준</th><th>2R 관리선</th></tr></thead><tbody id="alphaResultsBody"><tr><td colspan="10" class="alpha-empty">왼쪽에서 최고 후보 검색을 실행하세요.</td></tr></tbody></table></div>
       </div>
 
       <div class="signal-legend" id="signalLegend" style="display:none">
@@ -471,6 +508,9 @@
             <p><b>관심</b>은 거래대금 급증, <b>햄버거</b>는 양봉 급증, <b>확인</b>은 다음 양봉까지 자금이 유지된 신호입니다.</p>
           </div>
         </div>
+        <div class="signals-list" id="alphaSignalsList" style="display:none">
+          <div class="empty-state"><span>🧭</span><p>검색 결과를 선택하면<br>점수와 위험관리 기준이 표시됩니다.</p></div>
+        </div>
       </div>
 
       <!-- Strategy -->
@@ -547,6 +587,15 @@
           <div class="step"><span class="step-num hamburger-step">4</span><span>ETF·ETN·우선주·스팩 제외 후 알림</span></div>
         </div>
       </div>
+      <div class="panel-card strategy-card alpha-strategy" id="alphaStrategyCard" style="display:none">
+        <h3 style="color:#a78bfa">🧭 알파 프라임 운용 원칙</h3>
+        <div class="strategy-steps">
+          <div class="step"><span class="step-num alpha-step">1</span><span><b>시장 우선:</b> KOSPI·KOSDAQ 국면이 약하면 등급 자동 하향</span></div>
+          <div class="step"><span class="step-num alpha-step">2</span><span><b>주도주 선별:</b> 추세·모멘텀·상대강도·수급을 100점 평가</span></div>
+          <div class="step"><span class="step-num alpha-step">3</span><span><b>타점 확인:</b> 돌파·눌림 반등·신고가 수렴만 우선</span></div>
+          <div class="step"><span class="step-num alpha-step">4</span><span><b>생존 우선:</b> 1회 계좌 위험 0.5%, 종목당 최대 25%</span></div>
+        </div>
+      </div>
     </aside>
   </main>
 
@@ -566,5 +615,7 @@
   <script src="/js/doji-reversal-scanner.js"></script>
   <script src="/js/three-candle-reversal-scanner.js?v=20260812"></script>
   <script src="/js/hamburger-scanner.js?v=20260821b"></script>
+  <script src="/js/alpha-prime-engine.js?v=20260821"></script>
+  <script src="/js/alpha-prime-scanner.js?v=20260821"></script>
 </body>
 </html>
