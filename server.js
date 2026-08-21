@@ -1,7 +1,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const { getHamburgerStatus, finalizeIfNeeded } = require('./hamburger-service');
+const { getHamburgerStatus } = require('./hamburger-service');
 const app = express();
 const PORT = process.env.PORT || 3000;
 app.use(express.static(path.join(__dirname, 'public')));
@@ -89,10 +89,9 @@ app.get('/api/stocklist', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
-// ===== 햄버거 거래대금 알림: 장 시작 첫 3분봉 500억원 이상 =====
+// ===== 햄버거 거래대금 알림: 장중 각 3분봉 300억원 이상 =====
 app.get('/api/hamburger/status', async (req, res) => {
   try {
-    finalizeIfNeeded();
     res.json(await getHamburgerStatus());
   } catch (err) {
     res.status(502).json({ success: false, error: err.message });

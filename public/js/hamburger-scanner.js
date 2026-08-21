@@ -28,11 +28,11 @@
   function updateClock() {
     const now = getSeoulClock();
     const current = now.hour * 3600 + now.minute * 60 + now.second;
-    const open = 9 * 3600, closeFirstBar = open + 180;
+    const open = 9 * 3600, close = 15 * 3600 + 30 * 60;
     let label = '검색 종료';
     let remaining = 0;
     if (current < open) { label = '자동 검색까지'; remaining = open - current; }
-    else if (current < closeFirstBar) { label = '첫 3분봉 마감까지'; remaining = closeFirstBar - current; }
+    else if (current < close) { label = '현재 3분봉 마감까지'; remaining = 180 - ((current - open) % 180); }
     const mm = String(Math.floor(remaining / 60)).padStart(2, '0');
     const ss = String(remaining % 60).padStart(2, '0');
     $('hamburgerClockLabel').textContent = label;
@@ -79,39 +79,41 @@
   function sendNewAlerts(data) {
     if (!alertEnabled || !data.rows?.length) return;
     const key = `hamburger-alerted-${data.date}`;
-    const alerted = new Set(JSON.parse(localStorage.getItem(key) || '[]'));
-    const fresh = data.rows.filter(row => !alerted.has(row.code));
+    let saved = [];
+    try { saved = JSON.parse(localStorage.getItem(key) || '[]'); } catch (_) {}
+    const alerted = new Set(saved);
+    const fresh = data.rows.filter(row => !alerted.has(row.id));
     if (!fresh.length) return;
     beep();
-    const names = fresh.map(row => `${row.name} ${formatEok(row.tradingValueEok)}`).join(', ');
+    const names = fresh.map(row => `${row.name} ${row.barLabel} ${formatEok(row.tradingValueEok)}`).join(', ');
     if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('🍔 첫 3분봉 500억 돌파', { body: names, tag: `hamburger-${data.date}` });
+      try { new Notification('🍔 3분봉 거래대금 300억 돌파', { body: names, tag: `hamburger-${data.date}-${fresh[0].id}` }); } catch (_) {}
     }
-    fresh.forEach(row => alerted.add(row.code));
+    fresh.forEach(row => alerted.add(row.id));
     localStorage.setItem(key, JSON.stringify([...alerted]));
   }
 
   function renderRows(data) {
     const rows = data.rows || [];
     $('hamburgerMetricCount').textContent = String(rows.length);
-    $('hamburgerMatchCount').textContent = `${rows.length}종목`;
+    $('hamburgerMatchCount').textContent = `${rows.length}건`;
     if (!rows.length) {
-      $('hamburgerResultsBody').innerHTML = `<tr><td colspan="6" class="hamburger-empty-row">${data.phase === 'SCANNING' ? '500억원 돌파 종목을 기다리고 있습니다.' : '확정된 500억원 돌파 종목이 없습니다.'}</td></tr>`;
-      $('hamburgerMatchResults').innerHTML = '<div class="empty-state"><span>🍔</span><p>아직 500억원을 넘긴<br>일반 주식이 없습니다.</p></div>';
+      $('hamburgerResultsBody').innerHTML = `<tr><td colspan="6" class="hamburger-empty-row">${data.phase === 'SCANNING' ? '현재 3분봉에서 300억원 돌파 종목을 기다리고 있습니다.' : '오늘 포착된 300억원 돌파 종목이 없습니다.'}</td></tr>`;
+      $('hamburgerMatchResults').innerHTML = '<div class="empty-state"><span>🍔</span><p>아직 3분봉 거래대금 300억원을 넘긴<br>일반 주식이 없습니다.</p></div>';
       return;
     }
     $('hamburgerResultsBody').innerHTML = rows.map(row => `
       <tr>
-        <td><a class="hamburger-stock-link" href="https://finance.naver.com/item/main.naver?code=${encodeURIComponent(row.code)}" target="_blank" rel="noopener">${escapeHtml(row.name)} <small>${escapeHtml(row.code)}</small></a></td>
-        <td>${escapeHtml(row.market)}</td><td>${formatNumber(row.price)}원</td>
+        <td><a class="hamburger-stock-link" href="https://finance.naver.com/item/main.naver?code=${encodeURIComponent(row.code)}" target="_blank" rel="noopener">${escapeHtml(row.name)} <small>${escapeHtml(row.market)} · ${escapeHtml(row.code)}</small></a></td>
+        <td>${escapeHtml(row.barLabel)}</td><td>${formatNumber(row.price)}원</td>
         <td class="${row.changeRate >= 0 ? 'price-up' : 'price-down'}">${row.changeRate >= 0 ? '+' : ''}${row.changeRate.toFixed(2)}%</td>
         <td class="hamburger-value">${formatEok(row.tradingValueEok)}</td><td><span class="hamburger-pass">돌파</span></td>
       </tr>`).join('');
     $('hamburgerMatchResults').innerHTML = rows.map(row => `
       <div class="match-item hamburger-match-item">
         <div class="match-header"><span class="match-name">${escapeHtml(row.name)}</span><span class="match-reliability reliability-high">돌파</span></div>
-        <div class="match-detail">${escapeHtml(row.market)} · ${formatNumber(row.price)}원 · ${row.changeRate >= 0 ? '+' : ''}${row.changeRate.toFixed(2)}%</div>
-        <div class="match-signal-date">첫 3분 거래대금 ${formatEok(row.tradingValueEok)}</div>
+        <div class="match-detail">${escapeHtml(row.market)} · ${escapeHtml(row.barLabel)} · ${row.changeRate >= 0 ? '+' : ''}${row.changeRate.toFixed(2)}%</div>
+        <div class="match-signal-date">3분봉 거래대금 ${formatEok(row.tradingValueEok)}</div>
       </div>`).join('');
   }
 
@@ -120,16 +122,15 @@
     $('hamburgerLeaderBars').innerHTML = leaders.length ? leaders.slice(0, 10).map(row => {
       const percent = Math.min(100, row.tradingValueEok / data.thresholdEok * 100);
       return `<div class="hamburger-leader"><span class="hamburger-leader-name">${escapeHtml(row.name)}</span><span class="hamburger-bar"><span style="width:${percent.toFixed(1)}%"></span></span><span class="hamburger-leader-value">${formatEok(row.tradingValueEok)}</span></div>`;
-    }).join('') : '<div class="hamburger-empty-row">검색 시간에 거래대금 흐름이 표시됩니다.</div>';
+    }).join('') : '<div class="hamburger-empty-row">현재 3분봉의 거래대금 흐름이 표시됩니다.</div>';
   }
 
   function renderStatus(data) {
     latest = data;
     const status = {
       WAITING: ['idle', '09:00 자동 검색 대기'],
-      SCANNING: ['scanning', '첫 3분봉 검색 중'],
-      LOCKED: ['done', data.locked ? '오늘 결과 확정' : '오늘 수집 기록 없음'],
-      CLOSED: ['idle', '장 마감 · 다음 거래일 대기']
+      SCANNING: ['scanning', `${data.currentBarLabel || '현재 3분봉'} 검색 중`],
+      CLOSED: ['done', '장 마감 · 오늘 결과']
     }[data.phase] || ['idle', '상태 확인 중'];
     $('hamburgerStatusDot').className = `status-dot ${status[0]}`;
     $('hamburgerStatusText').textContent = status[1];
@@ -141,8 +142,14 @@
   }
 
   function nextPollDelay(data) {
-    if (data.phase === 'SCANNING') return 3000;
-    if (data.phase === 'WAITING') return 30000;
+    const now = getSeoulClock();
+    const current = now.hour * 3600 + now.minute * 60 + now.second;
+    const open = 9 * 3600;
+    if (data.phase === 'SCANNING') {
+      const untilNextBar = (180 - ((current - open) % 180)) * 1000 + 250;
+      return Math.min(10000, untilNextBar);
+    }
+    if (data.phase === 'WAITING') return Math.min(30000, Math.max(1000, (open - current) * 1000 + 250));
     return null;
   }
 

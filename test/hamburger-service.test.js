@@ -1,8 +1,15 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseQuantPage, getPhase, isKrxMarketOpen, getHamburgerStatus, finalizeIfNeeded, THRESHOLD_MILLION_WON } = require('../hamburger-service');
+const {
+  parseQuantPage,
+  getPhase,
+  getBarInfo,
+  isKrxMarketOpen,
+  getHamburgerStatus,
+  THRESHOLD_MILLION_WON
+} = require('../hamburger-service');
 
-test('네이버 거래량 표에서 거래대금을 백만원 단위로 읽는다', () => {
+test('네이버 거래량 표에서 누적 거래대금을 백만원 단위로 읽는다', () => {
   const html = `
     <table><tr>
       <td class="no">1</td>
@@ -17,49 +24,74 @@ test('네이버 거래량 표에서 거래대금을 백만원 단위로 읽는�
   const rows = parseQuantPage(html, 'KOSPI');
   assert.equal(rows.length, 1);
   assert.equal(rows[0].code, '005930');
-  assert.equal(rows[0].tradingValueMillion, 6_960_702);
-  assert.equal(rows[0].tradingValueEok, 69_607);
+  assert.equal(rows[0].accumulatedTradingValueMillion, 6_960_702);
   assert.equal(rows[0].changeRate, 9.49);
 });
 
 test('ETF와 레버리지 상품을 표시한다', () => {
   const html = `<tr><td><a href="/item/main.naver?code=252670" class="tltle">KODEX 200선물인버스2X</a></td>${
-    ['76','12','-13.64%','11749610712','917583'].map(value => `<td class="number">${value}</td>`).join('')
+    ['76', '12', '-13.64%', '11749610712', '917583'].map(value => `<td class="number">${value}</td>`).join('')
   }</tr>`;
   assert.equal(parseQuantPage(html, 'KOSPI')[0].isFund, true);
 });
 
-test('500억원 기준은 네이버 표의 50,000백만원이다', () => {
-  assert.equal(THRESHOLD_MILLION_WON, 50_000);
+test('300억원 기준은 네이버 표의 30,000백만원이다', () => {
+  assert.equal(THRESHOLD_MILLION_WON, 30_000);
 });
 
-test('서울 시간 기준 첫 3분봉 구간을 구분한다', () => {
-  assert.equal(getPhase(new Date('2026-08-20T08:59:59+09:00')).phase, 'WAITING');
-  assert.equal(getPhase(new Date('2026-08-20T09:00:00+09:00')).phase, 'SCANNING');
-  assert.equal(getPhase(new Date('2026-08-20T09:02:59+09:00')).phase, 'SCANNING');
-  assert.equal(getPhase(new Date('2026-08-20T09:03:00+09:00')).phase, 'LOCKED');
+test('정규장 전체를 검색 구간으로 구분한다', () => {
+  assert.equal(getPhase(new Date('2026-08-24T08:59:59+09:00')).phase, 'WAITING');
+  assert.equal(getPhase(new Date('2026-08-24T09:00:00+09:00')).phase, 'SCANNING');
+  assert.equal(getPhase(new Date('2026-08-24T12:15:00+09:00')).phase, 'SCANNING');
+  assert.equal(getPhase(new Date('2026-08-24T15:29:59+09:00')).phase, 'SCANNING');
+  assert.equal(getPhase(new Date('2026-08-24T15:30:00+09:00')).phase, 'CLOSED');
+});
+
+test('장중 시간을 정렬된 3분봉으로 나눈다', () => {
+  const first = getBarInfo(getPhase(new Date('2026-08-24T09:02:59+09:00')));
+  const second = getBarInfo(getPhase(new Date('2026-08-24T09:03:00+09:00')));
+  const midday = getBarInfo(getPhase(new Date('2026-08-24T12:16:40+09:00')));
+  assert.equal(first.label, '09:00~09:03');
+  assert.equal(second.label, '09:03~09:06');
+  assert.equal(midday.label, '12:15~12:18');
 });
 
 test('정규장 상태와 거래일이 모두 맞을 때만 시장이 열린 것으로 본다', async () => {
   const mock = quote => async () => ({ ok: true, json: async () => ({ datas: [quote] }) });
-  assert.equal(await isKrxMarketOpen('2026-08-20', mock({ marketStatus: 'OPEN', localTradedAt: '2026-08-20T09:01:00+09:00' })), true);
-  assert.equal(await isKrxMarketOpen('2026-08-20', mock({ marketStatus: 'CLOSE', localTradedAt: '2026-08-20T15:30:00+09:00' })), false);
-  assert.equal(await isKrxMarketOpen('2026-08-20', mock({ marketStatus: 'OPEN', localTradedAt: '2026-08-19T15:30:00+09:00' })), false);
+  assert.equal(await isKrxMarketOpen('2026-08-24', mock({ marketStatus: 'OPEN', localTradedAt: '2026-08-24T09:01:00+09:00' })), true);
+  assert.equal(await isKrxMarketOpen('2026-08-24', mock({ marketStatus: 'CLOSE', localTradedAt: '2026-08-24T15:30:00+09:00' })), false);
+  assert.equal(await isKrxMarketOpen('2026-08-24', mock({ marketStatus: 'OPEN', localTradedAt: '2026-08-21T15:30:00+09:00' })), false);
 });
 
-test('첫 3분 중 500억원 이상 일반 주식만 결과로 확정한다', async () => {
+test('각 3분봉의 누적 거래대금 차이가 300억원을 넘을 때마다 포착한다', async () => {
+  let accumulated = 10_000;
   const stockRow = (code, name, value) => `<tr><td><a href="/item/main.naver?code=${code}" class="tltle">${name}</a></td>${
     ['10000', '100', '+1.00%', '1000000', String(value)].map(item => `<td class="number">${item}</td>`).join('')
   }</tr>`;
-  const html = `${stockRow('111111', 'ALPHA', 50_001)}${stockRow('222222', 'KODEX TEST', 80_000)}${stockRow('333333', 'BETA', 49_999)}`;
-  const fetchImpl = async url => url.includes('polling.finance.naver.com')
-    ? { ok: true, json: async () => ({ datas: [{ marketStatus: 'OPEN', localTradedAt: '2026-08-21T09:01:00+09:00' }] }) }
-    : { ok: true, arrayBuffer: async () => Buffer.from(html) };
+  const fetchImpl = async url => {
+    if (url.includes('polling.finance.naver.com')) {
+      return { ok: true, json: async () => ({ datas: [{ marketStatus: 'OPEN', localTradedAt: '2026-08-24T09:01:00+09:00' }] }) };
+    }
+    const html = `${stockRow('111111', 'ALPHA', accumulated)}${stockRow('222222', 'KODEX TEST', accumulated + 50_000)}`;
+    return { ok: true, arrayBuffer: async () => Buffer.from(html) };
+  };
 
-  const scanning = await getHamburgerStatus({ now: new Date('2026-08-21T09:01:00+09:00'), fetchImpl });
-  assert.deepEqual(scanning.rows.map(row => row.code), ['111111']);
-  finalizeIfNeeded(new Date('2026-08-21T09:03:00+09:00'));
-  const locked = await getHamburgerStatus({ now: new Date('2026-08-21T09:03:01+09:00'), fetchImpl });
-  assert.equal(locked.locked, true);
-  assert.deepEqual(locked.rows.map(row => row.code), ['111111']);
+  let result = await getHamburgerStatus({ now: new Date('2026-08-24T09:00:01+09:00'), fetchImpl });
+  assert.equal(result.rows.length, 0);
+
+  accumulated = 30_100;
+  result = await getHamburgerStatus({ now: new Date('2026-08-24T09:02:00+09:00'), fetchImpl });
+  assert.deepEqual(result.rows.map(row => row.barLabel), ['09:00~09:03']);
+  assert.equal(result.rows[0].tradingValueMillion, 30_100);
+
+  accumulated = 31_000;
+  result = await getHamburgerStatus({ now: new Date('2026-08-24T09:03:01+09:00'), fetchImpl });
+  assert.equal(result.activeRows.length, 0);
+
+  accumulated = 61_500;
+  result = await getHamburgerStatus({ now: new Date('2026-08-24T09:05:30+09:00'), fetchImpl });
+  assert.equal(result.rows.length, 2);
+  assert.deepEqual(result.rows.map(row => row.barLabel), ['09:03~09:06', '09:00~09:03']);
+  assert.equal(result.rows[0].tradingValueMillion, 30_500);
+  assert.ok(result.rows.every(row => row.code === '111111'));
 });

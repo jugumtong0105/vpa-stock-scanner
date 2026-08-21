@@ -1,19 +1,31 @@
 const fs = require('fs');
 const path = require('path');
 
-const THRESHOLD_MILLION_WON = 50_000; // 네이버 거래대금 단위: 백만원 = 500억원
-const FETCH_CACHE_MS = 4_000;
+const THRESHOLD_MILLION_WON = 30_000; // 네이버 거래대금 단위: 백만원 = 300억원
+const FETCH_CACHE_MS = 8_000;
+const MARKET_OPEN_SECONDS = 9 * 60 * 60;
+const MARKET_CLOSE_SECONDS = 15 * 60 * 60 + 30 * 60;
+const BAR_SECONDS = 3 * 60;
 const SNAPSHOT_FILE = path.join(__dirname, 'data', 'hamburger-snapshot.json');
 const ETF_NAME_PATTERN = /KODEX|TIGER|ACE|RISE|SOL |HANARO|PLUS |TIMEFOLIO|KOSEF|KBSTAR|KIWOOM|WON |1Q |ARIRANG|TREX|KTOP|히어로즈|파워 |ETN|인버스|레버리지/i;
 
-let memory = {
-  date: '',
-  rows: [],
-  leaders: [],
-  updatedAt: null,
-  locked: false,
-  lastFetchAt: 0
-};
+function emptyMemory(date = '') {
+  return {
+    date,
+    signals: [],
+    activeRows: [],
+    leaders: [],
+    barKey: null,
+    barIndex: null,
+    barLabel: null,
+    baselines: {},
+    lastTotals: {},
+    updatedAt: null,
+    lastFetchAt: 0
+  };
+}
+
+let memory = emptyMemory();
 
 function stripHtml(value) {
   return value
@@ -56,8 +68,7 @@ function parseQuantPage(html, market) {
       price: parseNumber(numbers[0]),
       changeRate: parseNumber(numbers[2]),
       volume: parseNumber(numbers[3]),
-      tradingValueMillion: parseNumber(numbers[4]),
-      tradingValueEok: Math.round(parseNumber(numbers[4]) / 100 * 10) / 10,
+      accumulatedTradingValueMillion: parseNumber(numbers[4]),
       isFund: ETF_NAME_PATTERN.test(name)
     });
   }
@@ -84,19 +95,35 @@ function getKstParts(now = new Date()) {
 function getPhase(now = new Date()) {
   const kst = getKstParts(now);
   const seconds = kst.hour * 3600 + kst.minute * 60 + kst.second;
-  if (kst.weekday === 'Sat' || kst.weekday === 'Sun') return { ...kst, phase: 'CLOSED' };
-  if (seconds < 9 * 3600) return { ...kst, phase: 'WAITING' };
-  if (seconds < 9 * 3600 + 3 * 60) return { ...kst, phase: 'SCANNING' };
-  if (seconds < 15 * 3600 + 30 * 60) return { ...kst, phase: 'LOCKED' };
-  return { ...kst, phase: 'CLOSED' };
+  if (kst.weekday === 'Sat' || kst.weekday === 'Sun') return { ...kst, seconds, phase: 'CLOSED' };
+  if (seconds < MARKET_OPEN_SECONDS) return { ...kst, seconds, phase: 'WAITING' };
+  if (seconds < MARKET_CLOSE_SECONDS) return { ...kst, seconds, phase: 'SCANNING' };
+  return { ...kst, seconds, phase: 'CLOSED' };
+}
+
+function formatClock(totalSeconds) {
+  const bounded = Math.max(0, totalSeconds);
+  const hour = Math.floor(bounded / 3600);
+  const minute = Math.floor((bounded % 3600) / 60);
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+function getBarInfo(phaseInfo) {
+  if (phaseInfo.phase !== 'SCANNING') return null;
+  const index = Math.floor((phaseInfo.seconds - MARKET_OPEN_SECONDS) / BAR_SECONDS);
+  const startSeconds = MARKET_OPEN_SECONDS + index * BAR_SECONDS;
+  const endSeconds = Math.min(startSeconds + BAR_SECONDS, MARKET_CLOSE_SECONDS);
+  const start = formatClock(startSeconds);
+  const end = formatClock(endSeconds);
+  return { index, key: `${phaseInfo.date}-${start}`, label: `${start}~${end}`, start, end };
 }
 
 function resetForDate(date) {
   if (memory.date === date) return;
-  memory = { date, rows: [], leaders: [], updatedAt: null, locked: false, lastFetchAt: 0 };
+  memory = emptyMemory(date);
   try {
     const saved = JSON.parse(fs.readFileSync(SNAPSHOT_FILE, 'utf8'));
-    if (saved.date === date) memory = { ...memory, ...saved, lastFetchAt: 0 };
+    if (saved.date === date) memory = { ...emptyMemory(date), ...saved, lastFetchAt: 0 };
   } catch (_) {
     // 첫 실행 또는 저장 파일 없음
   }
@@ -107,10 +134,15 @@ function saveSnapshot() {
     fs.mkdirSync(path.dirname(SNAPSHOT_FILE), { recursive: true });
     fs.writeFileSync(SNAPSHOT_FILE, JSON.stringify({
       date: memory.date,
-      rows: memory.rows,
+      signals: memory.signals,
+      activeRows: memory.activeRows,
       leaders: memory.leaders,
-      updatedAt: memory.updatedAt,
-      locked: memory.locked
+      barKey: memory.barKey,
+      barIndex: memory.barIndex,
+      barLabel: memory.barLabel,
+      baselines: memory.baselines,
+      lastTotals: memory.lastTotals,
+      updatedAt: memory.updatedAt
     }, null, 2));
   } catch (error) {
     console.warn('햄버거 스냅샷 저장 실패:', error.message);
@@ -120,7 +152,7 @@ function saveSnapshot() {
 async function fetchMarketLeaders(fetchImpl = fetch) {
   const requests = [];
   for (const market of [{ sosok: 0, name: 'KOSPI' }, { sosok: 1, name: 'KOSDAQ' }]) {
-    for (let page = 1; page <= 5; page++) {
+    for (let page = 1; page <= 2; page++) {
       requests.push((async () => {
         const url = `https://finance.naver.com/sise/sise_quant.naver?sosok=${market.sosok}&page=${page}`;
         const response = await fetchImpl(url, { headers: { 'User-Agent': 'Mozilla/5.0', 'Accept-Language': 'ko' } });
@@ -136,13 +168,12 @@ async function fetchMarketLeaders(fetchImpl = fetch) {
   for (const result of settled) {
     if (result.status !== 'fulfilled') continue;
     for (const stock of result.value) {
-      if (!unique.has(stock.code) || unique.get(stock.code).tradingValueMillion < stock.tradingValueMillion) {
-        unique.set(stock.code, stock);
-      }
+      const previous = unique.get(stock.code);
+      if (!previous || previous.accumulatedTradingValueMillion < stock.accumulatedTradingValueMillion) unique.set(stock.code, stock);
     }
   }
   if (!unique.size) throw new Error('거래대금 순위를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
-  return [...unique.values()].filter(stock => !stock.isFund).sort((a, b) => b.tradingValueMillion - a.tradingValueMillion);
+  return [...unique.values()].filter(stock => !stock.isFund);
 }
 
 async function isKrxMarketOpen(date, fetchImpl = fetch) {
@@ -156,16 +187,67 @@ async function isKrxMarketOpen(date, fetchImpl = fetch) {
   return quote?.marketStatus === 'OPEN' && tradedDate === date;
 }
 
+function beginBar(barInfo) {
+  if (memory.barKey === barInfo.key) return;
+  memory.barKey = barInfo.key;
+  memory.barIndex = barInfo.index;
+  memory.barLabel = barInfo.label;
+  memory.activeRows = [];
+  memory.leaders = [];
+  memory.baselines = {};
+  memory.lastFetchAt = 0;
+}
+
+function updateCurrentBar(stocks, barInfo, now) {
+  const isFirstBar = barInfo.index === 0;
+  const leaders = [];
+  const activeRows = [];
+
+  for (const stock of stocks) {
+    const total = stock.accumulatedTradingValueMillion;
+    if (!(stock.code in memory.baselines)) memory.baselines[stock.code] = isFirstBar ? 0 : total;
+    memory.lastTotals[stock.code] = total;
+    const tradingValueMillion = Math.max(0, total - memory.baselines[stock.code]);
+    const row = {
+      code: stock.code,
+      name: stock.name,
+      market: stock.market,
+      price: stock.price,
+      changeRate: stock.changeRate,
+      tradingValueMillion,
+      tradingValueEok: Math.round(tradingValueMillion / 100 * 10) / 10,
+      barKey: barInfo.key,
+      barLabel: barInfo.label
+    };
+    leaders.push(row);
+
+    if (tradingValueMillion >= THRESHOLD_MILLION_WON) {
+      const signalId = `${barInfo.key}-${stock.code}`;
+      const existing = memory.signals.find(item => item.id === signalId);
+      const signal = { ...row, id: signalId, detectedAt: existing?.detectedAt || now.toISOString() };
+      if (existing) Object.assign(existing, signal);
+      else memory.signals.unshift(signal);
+      activeRows.push(signal);
+    }
+  }
+
+  memory.activeRows = activeRows.sort((a, b) => b.tradingValueMillion - a.tradingValueMillion);
+  memory.leaders = leaders.sort((a, b) => b.tradingValueMillion - a.tradingValueMillion).slice(0, 12);
+  memory.signals.sort((a, b) => new Date(b.detectedAt) - new Date(a.detectedAt));
+  memory.updatedAt = now.toISOString();
+}
+
 function responsePayload(phaseInfo, note) {
   return {
     success: true,
     date: memory.date,
-    phase: memory.locked ? 'LOCKED' : phaseInfo.phase,
+    phase: phaseInfo.phase,
     thresholdEok: THRESHOLD_MILLION_WON / 100,
-    rows: memory.rows,
+    rows: memory.signals,
+    activeRows: memory.activeRows,
     leaders: memory.leaders,
+    currentBarLabel: memory.barLabel,
     updatedAt: memory.updatedAt,
-    locked: memory.locked,
     note
   };
 }
@@ -174,44 +256,30 @@ async function getHamburgerStatus({ now = new Date(), fetchImpl = fetch } = {}) 
   const phaseInfo = getPhase(now);
   resetForDate(phaseInfo.date);
 
-  if (memory.locked) return responsePayload(phaseInfo, '오늘 첫 3분봉 결과가 확정되었습니다.');
-  if (phaseInfo.phase === 'WAITING') return responsePayload(phaseInfo, '09:00부터 자동 검색을 시작합니다.');
-  if (phaseInfo.phase === 'CLOSED') return responsePayload(phaseInfo, '장 시작 전 사이트를 열어 두면 09:00부터 자동 검색합니다.');
+  if (phaseInfo.phase === 'WAITING') return responsePayload(phaseInfo, '09:00부터 장중 모든 3분봉을 자동 검색합니다.');
+  if (phaseInfo.phase === 'CLOSED') return responsePayload(phaseInfo, '장중 포착된 3분봉 거래대금 300억원 돌파 종목입니다.');
 
-  if (phaseInfo.phase === 'LOCKED' && !memory.updatedAt) {
-    return responsePayload(phaseInfo, '오늘 09:00~09:03에 수집된 기록이 없습니다. 다음 거래일 장 시작 전에 이 사이트를 열어 주세요.');
-  }
-
-  if (Date.now() - memory.lastFetchAt >= FETCH_CACHE_MS) {
+  const barInfo = getBarInfo(phaseInfo);
+  beginBar(barInfo);
+  if (now.getTime() - memory.lastFetchAt >= FETCH_CACHE_MS) {
     if (!(await isKrxMarketOpen(phaseInfo.date, fetchImpl))) {
       return responsePayload(phaseInfo, '현재 정규장이 열리지 않았습니다. 휴장일이면 검색 결과가 생성되지 않습니다.');
     }
     const stocks = await fetchMarketLeaders(fetchImpl);
-    memory.lastFetchAt = Date.now();
-    memory.leaders = stocks.slice(0, 12);
-    memory.rows = stocks.filter(stock => stock.tradingValueMillion >= THRESHOLD_MILLION_WON);
-    memory.updatedAt = now.toISOString();
+    memory.lastFetchAt = now.getTime();
+    updateCurrentBar(stocks, barInfo, now);
     saveSnapshot();
   }
 
-  return responsePayload(phaseInfo, '첫 3분봉 거래대금을 실시간 확인 중입니다.');
-}
-
-function finalizeIfNeeded(now = new Date()) {
-  const phaseInfo = getPhase(now);
-  resetForDate(phaseInfo.date);
-  if (!memory.locked && memory.updatedAt && phaseInfo.phase === 'LOCKED') {
-    memory.locked = true;
-    saveSnapshot();
-  }
+  return responsePayload(phaseInfo, `${barInfo.label} 거래대금을 실시간 확인 중입니다.`);
 }
 
 module.exports = {
   THRESHOLD_MILLION_WON,
   parseQuantPage,
   getPhase,
+  getBarInfo,
   isKrxMarketOpen,
   fetchMarketLeaders,
-  getHamburgerStatus,
-  finalizeIfNeeded
+  getHamburgerStatus
 };
