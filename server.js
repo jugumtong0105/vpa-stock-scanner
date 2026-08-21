@@ -89,7 +89,7 @@ app.get('/api/stocklist', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
-// ===== 햄버거 거래대금 알림: 장중 각 3분봉 300억원 이상 =====
+// ===== 햄버거 거래대금 알림: 30억원 이상 + 최근 20개 3분봉 중앙값의 5배 =====
 app.get('/api/hamburger/status', async (req, res) => {
   try {
     res.json(await getHamburgerStatus());

@@ -12,7 +12,15 @@
   }
 
   function formatNumber(value) { return Number(value || 0).toLocaleString('ko-KR'); }
-  function formatEok(value) { return `${formatNumber(Math.round(Number(value || 0)))}억원`; }
+  function formatEok(value) {
+    return `${Number(value || 0).toLocaleString('ko-KR', { maximumFractionDigits: 1 })}억원`;
+  }
+
+  function stageMeta(row) {
+    if (row.stage === 'CONFIRMED') return { label: '확인', className: 'confirmed', icon: '✅' };
+    if (row.stage === 'HAMBURGER') return { label: '햄버거', className: 'hamburger', icon: '🍔' };
+    return { label: '관심', className: 'watch', icon: '👀' };
+  }
 
   function getSeoulClock() {
     const parts = new Intl.DateTimeFormat('en-CA', {
@@ -82,14 +90,14 @@
     let saved = [];
     try { saved = JSON.parse(localStorage.getItem(key) || '[]'); } catch (_) {}
     const alerted = new Set(saved);
-    const fresh = data.rows.filter(row => !alerted.has(row.id));
+    const fresh = data.rows.filter(row => !alerted.has(`${row.id}:${row.stage}`));
     if (!fresh.length) return;
     beep();
-    const names = fresh.map(row => `${row.name} ${row.barLabel} ${formatEok(row.tradingValueEok)}`).join(', ');
+    const names = fresh.map(row => `${stageMeta(row).label} · ${row.name} ${row.barLabel} ${formatEok(row.tradingValueEok)} (${row.multiple || '-'}배)`).join(', ');
     if ('Notification' in window && Notification.permission === 'granted') {
-      try { new Notification('🍔 3분봉 거래대금 300억 돌파', { body: names, tag: `hamburger-${data.date}-${fresh[0].id}` }); } catch (_) {}
+      try { new Notification('🍔 3분봉 상대 거래대금 급증', { body: names, tag: `hamburger-${data.date}-${fresh[0].id}-${fresh[0].stage}` }); } catch (_) {}
     }
-    fresh.forEach(row => alerted.add(row.id));
+    fresh.forEach(row => alerted.add(`${row.id}:${row.stage}`));
     localStorage.setItem(key, JSON.stringify([...alerted]));
   }
 
@@ -98,30 +106,38 @@
     $('hamburgerMetricCount').textContent = String(rows.length);
     $('hamburgerMatchCount').textContent = `${rows.length}건`;
     if (!rows.length) {
-      $('hamburgerResultsBody').innerHTML = `<tr><td colspan="6" class="hamburger-empty-row">${data.phase === 'SCANNING' ? '현재 3분봉에서 300억원 돌파 종목을 기다리고 있습니다.' : '오늘 포착된 300억원 돌파 종목이 없습니다.'}</td></tr>`;
-      $('hamburgerMatchResults').innerHTML = '<div class="empty-state"><span>🍔</span><p>아직 3분봉 거래대금 300억원을 넘긴<br>일반 주식이 없습니다.</p></div>';
+      $('hamburgerResultsBody').innerHTML = `<tr><td colspan="7" class="hamburger-empty-row">${data.phase === 'SCANNING' ? '30억원 이상 + 평소 5배 급증 신호를 기다리고 있습니다.' : '오늘 포착된 상대 거래대금 급증 종목이 없습니다.'}</td></tr>`;
+      $('hamburgerMatchResults').innerHTML = '<div class="empty-state"><span>🍔</span><p>아직 30억원 이상이면서<br>평소의 5배가 터진 종목이 없습니다.</p></div>';
       return;
     }
-    $('hamburgerResultsBody').innerHTML = rows.map(row => `
+    $('hamburgerResultsBody').innerHTML = rows.map(row => {
+      const stage = stageMeta(row);
+      return `
       <tr>
         <td><a class="hamburger-stock-link" href="https://finance.naver.com/item/main.naver?code=${encodeURIComponent(row.code)}" target="_blank" rel="noopener">${escapeHtml(row.name)} <small>${escapeHtml(row.market)} · ${escapeHtml(row.code)}</small></a></td>
         <td>${escapeHtml(row.barLabel)}</td><td>${formatNumber(row.price)}원</td>
         <td class="${row.changeRate >= 0 ? 'price-up' : 'price-down'}">${row.changeRate >= 0 ? '+' : ''}${row.changeRate.toFixed(2)}%</td>
-        <td class="hamburger-value">${formatEok(row.tradingValueEok)}</td><td><span class="hamburger-pass">돌파</span></td>
-      </tr>`).join('');
-    $('hamburgerMatchResults').innerHTML = rows.map(row => `
+        <td class="hamburger-value">${formatEok(row.tradingValueEok)}</td>
+        <td><b>${row.multiple || '-'}배</b><small class="hamburger-baseline">평소 ${formatEok(row.medianTradingValueEok)}</small></td>
+        <td><span class="hamburger-pass ${stage.className}">${stage.icon} ${stage.label}</span></td>
+      </tr>`;
+    }).join('');
+    $('hamburgerMatchResults').innerHTML = rows.map(row => {
+      const stage = stageMeta(row);
+      return `
       <div class="match-item hamburger-match-item">
-        <div class="match-header"><span class="match-name">${escapeHtml(row.name)}</span><span class="match-reliability reliability-high">돌파</span></div>
+        <div class="match-header"><span class="match-name">${escapeHtml(row.name)}</span><span class="match-reliability hamburger-pass ${stage.className}">${stage.icon} ${stage.label}</span></div>
         <div class="match-detail">${escapeHtml(row.market)} · ${escapeHtml(row.barLabel)} · ${row.changeRate >= 0 ? '+' : ''}${row.changeRate.toFixed(2)}%</div>
-        <div class="match-signal-date">3분봉 거래대금 ${formatEok(row.tradingValueEok)}</div>
-      </div>`).join('');
+        <div class="match-signal-date">${formatEok(row.tradingValueEok)} · 평소 대비 ${row.multiple || '-'}배</div>
+      </div>`;
+    }).join('');
   }
 
   function renderLeaders(data) {
     const leaders = data.leaders || [];
     $('hamburgerLeaderBars').innerHTML = leaders.length ? leaders.slice(0, 10).map(row => {
-      const percent = Math.min(100, row.tradingValueEok / data.thresholdEok * 100);
-      return `<div class="hamburger-leader"><span class="hamburger-leader-name">${escapeHtml(row.name)}</span><span class="hamburger-bar"><span style="width:${percent.toFixed(1)}%"></span></span><span class="hamburger-leader-value">${formatEok(row.tradingValueEok)}</span></div>`;
+      const percent = Math.min(100, Number(row.multiple || 0) / Number(data.relativeMultiplier || 5) * 100);
+      return `<div class="hamburger-leader"><span class="hamburger-leader-name">${escapeHtml(row.name)}</span><span class="hamburger-bar"><span style="width:${percent.toFixed(1)}%"></span></span><span class="hamburger-leader-value">${row.multiple || '-'}배 · ${formatEok(row.tradingValueEok)}</span></div>`;
     }).join('') : '<div class="hamburger-empty-row">현재 3분봉의 거래대금 흐름이 표시됩니다.</div>';
   }
 

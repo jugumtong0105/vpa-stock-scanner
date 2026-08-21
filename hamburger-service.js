@@ -1,16 +1,20 @@
 const fs = require('fs');
 const path = require('path');
 
-const THRESHOLD_MILLION_WON = 30_000; // 네이버 거래대금 단위: 백만원 = 300억원
+const MIN_TRADING_VALUE_MILLION_WON = 3_000; // 네이버 거래대금 단위: 백만원 = 30억원
+const RELATIVE_MULTIPLIER = 5;
+const HISTORY_WINDOW = 20;
+const CONFIRMATION_RATIO = 0.8;
 const FETCH_CACHE_MS = 8_000;
 const MARKET_OPEN_SECONDS = 9 * 60 * 60;
 const MARKET_CLOSE_SECONDS = 15 * 60 * 60 + 30 * 60;
 const BAR_SECONDS = 3 * 60;
 const SNAPSHOT_FILE = path.join(__dirname, 'data', 'hamburger-snapshot.json');
-const ETF_NAME_PATTERN = /KODEX|TIGER|ACE|RISE|SOL |HANARO|PLUS |TIMEFOLIO|KOSEF|KBSTAR|KIWOOM|WON |1Q |ARIRANG|TREX|KTOP|히어로즈|파워 |ETN|인버스|레버리지/i;
+const EXCLUDED_NAME_PATTERN = /KODEX|TIGER|ACE|RISE|SOL |HANARO|PLUS |TIMEFOLIO|KOSEF|KBSTAR|KIWOOM|WON |1Q |ARIRANG|TREX|KTOP|히어로즈|파워 |ETN|인버스|레버리지|스팩|우(?:B|C)?$/i;
 
 function emptyMemory(date = '') {
   return {
+    schemaVersion: 2,
     date,
     signals: [],
     activeRows: [],
@@ -19,6 +23,10 @@ function emptyMemory(date = '') {
     barIndex: null,
     barLabel: null,
     baselines: {},
+    openPrices: {},
+    currentRows: {},
+    histories: {},
+    historyLoaded: {},
     lastTotals: {},
     updatedAt: null,
     lastFetchAt: 0
@@ -69,10 +77,79 @@ function parseQuantPage(html, market) {
       changeRate: parseNumber(numbers[2]),
       volume: parseNumber(numbers[3]),
       accumulatedTradingValueMillion: parseNumber(numbers[4]),
-      isFund: ETF_NAME_PATTERN.test(name)
+      isFund: EXCLUDED_NAME_PATTERN.test(name)
     });
   }
   return stocks;
+}
+
+function median(values) {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+function getDynamicThreshold(history = []) {
+  const recent = history
+    .slice(-HISTORY_WINDOW)
+    .map(bar => Number(bar.tradingValueMillion) || 0)
+    .filter(value => value > 0);
+  const medianMillion = median(recent);
+  return {
+    sampleSize: recent.length,
+    medianMillion,
+    thresholdMillion: Math.max(MIN_TRADING_VALUE_MILLION_WON, medianMillion * RELATIVE_MULTIPLIER)
+  };
+}
+
+function parseMinuteHistory(xml, { currentDate = '', currentBarIndex = Number.POSITIVE_INFINITY } = {}) {
+  const points = [...String(xml || '').matchAll(/<item data="(\d{12})\|[^|]*\|[^|]*\|[^|]*\|(\d+)\|(\d+)"/g)]
+    .map(match => ({ at: match[1], close: Number(match[2]), cumulativeVolume: Number(match[3]) }))
+    .sort((a, b) => a.at.localeCompare(b.at));
+  const groups = new Map();
+  let previousDate = '';
+  let previousCumulativeVolume = 0;
+
+  for (const point of points) {
+    const date = point.at.slice(0, 8);
+    const hour = Number(point.at.slice(8, 10));
+    const minute = Number(point.at.slice(10, 12));
+    const barIndex = Math.floor((hour * 60 + minute - 9 * 60) / 3);
+    if (barIndex < 0 || barIndex >= 130) continue;
+    if (date !== previousDate) previousCumulativeVolume = 0;
+    const volume = Math.max(0, point.cumulativeVolume - previousCumulativeVolume);
+    previousDate = date;
+    previousCumulativeVolume = point.cumulativeVolume;
+    const key = `${date}-${barIndex}`;
+    const bar = groups.get(key) || {
+      barKey: key,
+      barIndex,
+      date,
+      openPrice: point.close,
+      closePrice: point.close,
+      tradingValueMillion: 0
+    };
+    bar.closePrice = point.close;
+    bar.tradingValueMillion += volume * point.close / 1_000_000;
+    groups.set(key, bar);
+  }
+
+  return [...groups.values()]
+    .filter(bar => bar.date < currentDate || (bar.date === currentDate && bar.barIndex < currentBarIndex))
+    .map(bar => ({ ...bar, isBullish: bar.closePrice > bar.openPrice }))
+    .slice(-HISTORY_WINDOW);
+}
+
+async function fetchMinuteHistory(code, phaseInfo, barInfo, fetchImpl = fetch) {
+  const url = `https://fchart.stock.naver.com/sise.nhn?symbol=${code}&timeframe=minute&count=3000&requestType=0`;
+  const response = await fetchImpl(url, { headers: { 'User-Agent': 'Mozilla/5.0', 'Accept-Language': 'ko' } });
+  if (!response.ok) throw new Error(`분봉 이력 응답 ${response.status}`);
+  const xml = await response.text();
+  return parseMinuteHistory(xml, {
+    currentDate: phaseInfo.date.replaceAll('-', ''),
+    currentBarIndex: barInfo.index
+  });
 }
 
 function getKstParts(now = new Date()) {
@@ -123,7 +200,9 @@ function resetForDate(date) {
   memory = emptyMemory(date);
   try {
     const saved = JSON.parse(fs.readFileSync(SNAPSHOT_FILE, 'utf8'));
-    if (saved.date === date) memory = { ...emptyMemory(date), ...saved, lastFetchAt: 0 };
+    if (saved.schemaVersion === 2 && saved.date === date) {
+      memory = { ...emptyMemory(date), ...saved, lastFetchAt: 0 };
+    }
   } catch (_) {
     // 첫 실행 또는 저장 파일 없음
   }
@@ -133,6 +212,7 @@ function saveSnapshot() {
   try {
     fs.mkdirSync(path.dirname(SNAPSHOT_FILE), { recursive: true });
     fs.writeFileSync(SNAPSHOT_FILE, JSON.stringify({
+      schemaVersion: memory.schemaVersion,
       date: memory.date,
       signals: memory.signals,
       activeRows: memory.activeRows,
@@ -141,6 +221,10 @@ function saveSnapshot() {
       barIndex: memory.barIndex,
       barLabel: memory.barLabel,
       baselines: memory.baselines,
+      openPrices: memory.openPrices,
+      currentRows: memory.currentRows,
+      histories: memory.histories,
+      historyLoaded: memory.historyLoaded,
       lastTotals: memory.lastTotals,
       updatedAt: memory.updatedAt
     }, null, 2));
@@ -187,53 +271,134 @@ async function isKrxMarketOpen(date, fetchImpl = fetch) {
   return quote?.marketStatus === 'OPEN' && tradedDate === date;
 }
 
-function beginBar(barInfo) {
+function addCompletedBar(code, bar) {
+  const history = memory.histories[code] || [];
+  const withoutDuplicate = history.filter(item => item.barKey !== bar.barKey);
+  memory.histories[code] = [...withoutDuplicate, bar].slice(-HISTORY_WINDOW);
+}
+
+function finalizeCurrentBar(now) {
+  const completed = Object.values(memory.currentRows || {});
+  if (!completed.length) return;
+
+  for (const row of completed) {
+    const history = memory.histories[row.code] || [];
+    const dynamic = getDynamicThreshold(history);
+    const isBullish = row.price > row.openPrice;
+    const previousSignal = memory.signals.find(signal =>
+      signal.code === row.code && signal.barIndex === row.barIndex - 1 && signal.stage === 'HAMBURGER'
+    );
+    if (previousSignal && isBullish && row.tradingValueMillion >= previousSignal.tradingValueMillion * CONFIRMATION_RATIO) {
+      previousSignal.stage = 'CONFIRMED';
+      previousSignal.stageLabel = '확인';
+      previousSignal.confirmedAt = now.toISOString();
+      previousSignal.confirmationBarLabel = row.barLabel;
+      previousSignal.confirmationValueEok = Math.round(row.tradingValueMillion / 10) / 10;
+    }
+
+    if (dynamic.sampleSize >= 5 && row.tradingValueMillion >= dynamic.thresholdMillion) {
+      const signalId = `${row.barKey}-${row.code}`;
+      const stage = isBullish ? 'HAMBURGER' : 'WATCH';
+      const signal = {
+        ...row,
+        id: signalId,
+        stage,
+        stageLabel: isBullish ? '햄버거' : '관심',
+        isBullish,
+        medianTradingValueEok: Math.round(dynamic.medianMillion / 10) / 10,
+        dynamicThresholdEok: Math.round(dynamic.thresholdMillion / 10) / 10,
+        multiple: dynamic.medianMillion
+          ? Math.round(row.tradingValueMillion / dynamic.medianMillion * 10) / 10
+          : null,
+        detectedAt: now.toISOString()
+      };
+      const existing = memory.signals.find(item => item.id === signalId);
+      if (existing) Object.assign(existing, signal, { detectedAt: existing.detectedAt });
+      else memory.signals.unshift(signal);
+    }
+
+    addCompletedBar(row.code, {
+      barKey: row.barKey,
+      barIndex: row.barIndex,
+      openPrice: row.openPrice,
+      closePrice: row.price,
+      tradingValueMillion: row.tradingValueMillion,
+      isBullish
+    });
+  }
+  memory.signals.sort((a, b) => new Date(b.detectedAt) - new Date(a.detectedAt));
+}
+
+function beginBar(barInfo, now) {
   if (memory.barKey === barInfo.key) return;
+  if (memory.barKey) finalizeCurrentBar(now);
   memory.barKey = barInfo.key;
   memory.barIndex = barInfo.index;
   memory.barLabel = barInfo.label;
   memory.activeRows = [];
   memory.leaders = [];
-  memory.baselines = {};
+  memory.baselines = { ...memory.lastTotals };
+  memory.openPrices = {};
+  memory.currentRows = {};
   memory.lastFetchAt = 0;
+}
+
+async function ensureMinuteHistories(stocks, phaseInfo, barInfo, fetchImpl) {
+  const missing = stocks.filter(stock => !memory.historyLoaded[stock.code]);
+  for (let index = 0; index < missing.length; index += 8) {
+    const batch = missing.slice(index, index + 8);
+    const settled = await Promise.allSettled(batch.map(async stock => {
+      const bars = await fetchMinuteHistory(stock.code, phaseInfo, barInfo, fetchImpl);
+      if (bars.length) memory.histories[stock.code] = bars;
+      memory.historyLoaded[stock.code] = true;
+    }));
+    settled.forEach((result, offset) => {
+      if (result.status === 'rejected') {
+        const code = batch[offset].code;
+        memory.historyLoaded[code] = true;
+        console.warn(`${code} 분봉 이력 로딩 실패:`, result.reason?.message || result.reason);
+      }
+    });
+  }
 }
 
 function updateCurrentBar(stocks, barInfo, now) {
   const isFirstBar = barInfo.index === 0;
   const leaders = [];
-  const activeRows = [];
 
   for (const stock of stocks) {
     const total = stock.accumulatedTradingValueMillion;
     if (!(stock.code in memory.baselines)) memory.baselines[stock.code] = isFirstBar ? 0 : total;
+    if (!(stock.code in memory.openPrices)) memory.openPrices[stock.code] = stock.price;
     memory.lastTotals[stock.code] = total;
     const tradingValueMillion = Math.max(0, total - memory.baselines[stock.code]);
+    const dynamic = getDynamicThreshold(memory.histories[stock.code] || []);
     const row = {
       code: stock.code,
       name: stock.name,
       market: stock.market,
       price: stock.price,
+      openPrice: memory.openPrices[stock.code],
       changeRate: stock.changeRate,
       tradingValueMillion,
-      tradingValueEok: Math.round(tradingValueMillion / 100 * 10) / 10,
+      tradingValueEok: Math.round(tradingValueMillion / 10) / 10,
+      medianTradingValueEok: Math.round(dynamic.medianMillion / 10) / 10,
+      dynamicThresholdEok: Math.round(dynamic.thresholdMillion / 10) / 10,
+      multiple: dynamic.medianMillion ? Math.round(tradingValueMillion / dynamic.medianMillion * 10) / 10 : null,
       barKey: barInfo.key,
+      barIndex: barInfo.index,
       barLabel: barInfo.label
     };
+    memory.currentRows[stock.code] = row;
     leaders.push(row);
-
-    if (tradingValueMillion >= THRESHOLD_MILLION_WON) {
-      const signalId = `${barInfo.key}-${stock.code}`;
-      const existing = memory.signals.find(item => item.id === signalId);
-      const signal = { ...row, id: signalId, detectedAt: existing?.detectedAt || now.toISOString() };
-      if (existing) Object.assign(existing, signal);
-      else memory.signals.unshift(signal);
-      activeRows.push(signal);
-    }
   }
 
-  memory.activeRows = activeRows.sort((a, b) => b.tradingValueMillion - a.tradingValueMillion);
-  memory.leaders = leaders.sort((a, b) => b.tradingValueMillion - a.tradingValueMillion).slice(0, 12);
-  memory.signals.sort((a, b) => new Date(b.detectedAt) - new Date(a.detectedAt));
+  memory.activeRows = leaders
+    .filter(row => row.tradingValueMillion >= row.dynamicThresholdEok * 100)
+    .sort((a, b) => b.tradingValueMillion - a.tradingValueMillion);
+  memory.leaders = leaders
+    .sort((a, b) => (b.multiple || 0) - (a.multiple || 0))
+    .slice(0, 12);
   memory.updatedAt = now.toISOString();
 }
 
@@ -242,7 +407,10 @@ function responsePayload(phaseInfo, note) {
     success: true,
     date: memory.date,
     phase: phaseInfo.phase,
-    thresholdEok: THRESHOLD_MILLION_WON / 100,
+    thresholdEok: MIN_TRADING_VALUE_MILLION_WON / 100,
+    relativeMultiplier: RELATIVE_MULTIPLIER,
+    historyWindow: HISTORY_WINDOW,
+    confirmationRatio: CONFIRMATION_RATIO,
     rows: memory.signals,
     activeRows: memory.activeRows,
     leaders: memory.leaders,
@@ -256,27 +424,33 @@ async function getHamburgerStatus({ now = new Date(), fetchImpl = fetch } = {}) 
   const phaseInfo = getPhase(now);
   resetForDate(phaseInfo.date);
 
-  if (phaseInfo.phase === 'WAITING') return responsePayload(phaseInfo, '09:00부터 장중 모든 3분봉을 자동 검색합니다.');
-  if (phaseInfo.phase === 'CLOSED') return responsePayload(phaseInfo, '장중 포착된 3분봉 거래대금 300억원 돌파 종목입니다.');
+  if (phaseInfo.phase === 'WAITING') return responsePayload(phaseInfo, '09:00부터 30억원 이상이면서 평소의 5배가 터지는 3분봉을 검색합니다.');
+  if (phaseInfo.phase === 'CLOSED') return responsePayload(phaseInfo, '오늘 포착된 상대 거래대금 급증 종목입니다.');
 
   const barInfo = getBarInfo(phaseInfo);
-  beginBar(barInfo);
+  beginBar(barInfo, now);
   if (now.getTime() - memory.lastFetchAt >= FETCH_CACHE_MS) {
     if (!(await isKrxMarketOpen(phaseInfo.date, fetchImpl))) {
       return responsePayload(phaseInfo, '현재 정규장이 열리지 않았습니다. 휴장일이면 검색 결과가 생성되지 않습니다.');
     }
     const stocks = await fetchMarketLeaders(fetchImpl);
+    await ensureMinuteHistories(stocks, phaseInfo, barInfo, fetchImpl);
     memory.lastFetchAt = now.getTime();
     updateCurrentBar(stocks, barInfo, now);
     saveSnapshot();
   }
 
-  return responsePayload(phaseInfo, `${barInfo.label} 거래대금을 실시간 확인 중입니다.`);
+  return responsePayload(phaseInfo, `${barInfo.label} 거래대금과 종목별 평소 대비 배수를 확인 중입니다. 신호는 3분봉 마감 후 확정됩니다.`);
 }
 
 module.exports = {
-  THRESHOLD_MILLION_WON,
+  MIN_TRADING_VALUE_MILLION_WON,
+  RELATIVE_MULTIPLIER,
+  HISTORY_WINDOW,
+  CONFIRMATION_RATIO,
   parseQuantPage,
+  parseMinuteHistory,
+  getDynamicThreshold,
   getPhase,
   getBarInfo,
   isKrxMarketOpen,

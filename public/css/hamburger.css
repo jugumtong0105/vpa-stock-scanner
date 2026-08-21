@@ -30,12 +30,16 @@
 .hamburger-stock-link:hover{color:#ff9f43}
 .hamburger-value{color:#ff9f43;font-weight:800}
 .hamburger-pass{padding:3px 7px;border-radius:12px;background:rgba(46,213,115,.13);color:#2ed573;font-size:10px;font-weight:700}
+.hamburger-pass.watch{background:rgba(250,204,21,.14);color:#facc15}
+.hamburger-pass.hamburger{background:rgba(255,159,67,.16);color:#ff9f43}
+.hamburger-pass.confirmed{background:rgba(46,213,115,.16);color:#2ed573}
+.hamburger-baseline{display:block;margin-top:2px;color:var(--text-muted);font-size:9px;font-weight:400}
 .hamburger-empty-row{text-align:center!important;color:var(--text-muted);padding:40px!important}
 .hamburger-leaders{margin-top:14px;padding:14px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px}
 .hamburger-leaders h3{font-size:12px;margin-bottom:12px}
 .hamburger-leaders h3 span{font-size:9px;color:var(--text-muted);font-weight:400;margin-left:6px}
 .hamburger-leader-bars{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px}
-.hamburger-leader{display:grid;grid-template-columns:95px 1fr 62px;gap:8px;align-items:center;font-size:10px}
+.hamburger-leader{display:grid;grid-template-columns:95px 1fr 105px;gap:8px;align-items:center;font-size:10px}
 .hamburger-leader-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hamburger-bar{height:5px;border-radius:5px;background:var(--border);overflow:hidden}
 .hamburger-bar span{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,#ff9f43,#ff6b35)}

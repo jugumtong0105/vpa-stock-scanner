@@ -6,7 +6,10 @@ const {
   getBarInfo,
   isKrxMarketOpen,
   getHamburgerStatus,
-  THRESHOLD_MILLION_WON
+  parseMinuteHistory,
+  getDynamicThreshold,
+  MIN_TRADING_VALUE_MILLION_WON,
+  RELATIVE_MULTIPLIER
 } = require('../hamburger-service');
 
 test('네이버 거래량 표에서 누적 거래대금을 백만원 단위로 읽는다', () => {
@@ -35,8 +38,25 @@ test('ETF와 레버리지 상품을 표시한다', () => {
   assert.equal(parseQuantPage(html, 'KOSPI')[0].isFund, true);
 });
 
-test('300억원 기준은 네이버 표의 30,000백만원이다', () => {
-  assert.equal(THRESHOLD_MILLION_WON, 30_000);
+test('최소 30억원과 평소 대비 5배를 함께 사용한다', () => {
+  assert.equal(MIN_TRADING_VALUE_MILLION_WON, 3_000);
+  assert.equal(RELATIVE_MULTIPLIER, 5);
+  assert.equal(getDynamicThreshold(Array(20).fill({ tradingValueMillion: 200 })).thresholdMillion, 3_000);
+  assert.equal(getDynamicThreshold(Array(20).fill({ tradingValueMillion: 1_000 })).thresholdMillion, 5_000);
+});
+
+test('1분 누적 거래량을 직전 20개 3분봉 거래대금 이력으로 변환한다', () => {
+  const xml = `
+    <item data="202608210900||||10000|1000" />
+    <item data="202608210901||||10100|2000" />
+    <item data="202608210903||||10200|3000" />
+    <item data="202608240900||||10300|1000" />`;
+  const bars = parseMinuteHistory(xml, { currentDate: '20260824', currentBarIndex: 0 });
+  assert.equal(bars.length, 2);
+  assert.equal(Math.round(bars[0].tradingValueMillion * 10) / 10, 20.1);
+  assert.equal(bars[0].openPrice, 10000);
+  assert.equal(bars[0].closePrice, 10100);
+  assert.equal(bars[0].isBullish, true);
 });
 
 test('정규장 전체를 검색 구간으로 구분한다', () => {
@@ -63,14 +83,23 @@ test('정규장 상태와 거래일이 모두 맞을 때만 시장이 열린 것
   assert.equal(await isKrxMarketOpen('2026-08-24', mock({ marketStatus: 'OPEN', localTradedAt: '2026-08-21T15:30:00+09:00' })), false);
 });
 
-test('각 3분봉의 누적 거래대금 차이가 300억원을 넘을 때마다 포착한다', async () => {
-  let accumulated = 10_000;
+test('30억원·평소 5배·양봉을 포착하고 다음 양봉에서 확인 신호로 승격한다', async () => {
+  let accumulated = 0;
+  let price = 10_000;
+  const historyXml = Array.from({ length: 20 }, (_, index) => {
+    const minute = 30 + index * 3;
+    const hhmm = `${String(13 + Math.floor(minute / 60)).padStart(2, '0')}${String(minute % 60).padStart(2, '0')}`;
+    return `<item data="20260821${hhmm}||||10000|${(index + 1) * 1000}" />`;
+  }).join('');
   const stockRow = (code, name, value) => `<tr><td><a href="/item/main.naver?code=${code}" class="tltle">${name}</a></td>${
-    ['10000', '100', '+1.00%', '1000000', String(value)].map(item => `<td class="number">${item}</td>`).join('')
+    [String(price), '100', '+1.00%', '1000000', String(value)].map(item => `<td class="number">${item}</td>`).join('')
   }</tr>`;
   const fetchImpl = async url => {
     if (url.includes('polling.finance.naver.com')) {
       return { ok: true, json: async () => ({ datas: [{ marketStatus: 'OPEN', localTradedAt: '2026-08-24T09:01:00+09:00' }] }) };
+    }
+    if (url.includes('fchart.stock.naver.com')) {
+      return { ok: true, text: async () => historyXml };
     }
     const html = `${stockRow('111111', 'ALPHA', accumulated)}${stockRow('222222', 'KODEX TEST', accumulated + 50_000)}`;
     return { ok: true, arrayBuffer: async () => Buffer.from(html) };
@@ -79,19 +108,24 @@ test('각 3분봉의 누적 거래대금 차이가 300억원을 넘을 때마다
   let result = await getHamburgerStatus({ now: new Date('2026-08-24T09:00:01+09:00'), fetchImpl });
   assert.equal(result.rows.length, 0);
 
-  accumulated = 30_100;
+  accumulated = 3_100;
+  price = 10_100;
   result = await getHamburgerStatus({ now: new Date('2026-08-24T09:02:00+09:00'), fetchImpl });
-  assert.deepEqual(result.rows.map(row => row.barLabel), ['09:00~09:03']);
-  assert.equal(result.rows[0].tradingValueMillion, 30_100);
+  assert.equal(result.rows.length, 0, '완성 전인 3분봉은 알리지 않는다');
 
-  accumulated = 31_000;
   result = await getHamburgerStatus({ now: new Date('2026-08-24T09:03:01+09:00'), fetchImpl });
-  assert.equal(result.activeRows.length, 0);
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].stage, 'HAMBURGER');
+  assert.equal(result.rows[0].tradingValueMillion, 3_100);
+  assert.ok(result.rows[0].multiple >= 5);
 
-  accumulated = 61_500;
+  accumulated = 5_600;
+  price = 10_200;
   result = await getHamburgerStatus({ now: new Date('2026-08-24T09:05:30+09:00'), fetchImpl });
-  assert.equal(result.rows.length, 2);
-  assert.deepEqual(result.rows.map(row => row.barLabel), ['09:03~09:06', '09:00~09:03']);
-  assert.equal(result.rows[0].tradingValueMillion, 30_500);
-  assert.ok(result.rows.every(row => row.code === '111111'));
+  assert.equal(result.rows[0].stage, 'HAMBURGER');
+
+  result = await getHamburgerStatus({ now: new Date('2026-08-24T09:06:01+09:00'), fetchImpl });
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].stage, 'CONFIRMED');
+  assert.equal(result.rows[0].confirmationBarLabel, '09:03~09:06');
 });

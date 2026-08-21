@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
   <link rel="stylesheet" href="/css/style.css">
-  <link rel="stylesheet" href="/css/hamburger.css?v=20260821">
+  <link rel="stylesheet" href="/css/hamburger.css?v=20260821b">
 </head>
 <body>
   <!-- Header -->
@@ -48,7 +48,7 @@
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-tabs">
         <button class="sidebar-tab active" data-tab="scan">🎯 매칭종목</button>
-        <button class="sidebar-tab" data-tab="hamburger" style="color:#ff9f43">🍔 햄버거 300억</button>
+        <button class="sidebar-tab" data-tab="hamburger" style="color:#ff9f43">🍔 햄버거 거래대금</button>
         <button class="sidebar-tab" data-tab="history">📈 성과추적</button>
         <button class="sidebar-tab" data-tab="newscan" style="color:#e056fd">🚀 신규 조건검색</button>
         <button class="sidebar-tab" data-tab="closing" style="color:#f0932b">💵 종가베팅(신고가)</button>
@@ -228,7 +228,7 @@
           </div>
         </div>
         <div class="hamburger-mini-summary">
-          <span>3분봉 기준 <b>300억원</b></span>
+          <span>3분봉 기준 <b>30억 + 평소 5배</b></span>
           <span id="hamburgerMatchCount">0건</span>
         </div>
         <div class="match-results" id="hamburgerMatchResults">
@@ -304,7 +304,7 @@
           <div>
             <p class="hamburger-eyebrow">ALL-DAY 3-MINUTE MONEY FLOW</p>
             <h2>🍔 햄버거 거래대금 알림</h2>
-            <p>장중 각 3분봉에서 거래대금 300억원을 넘긴 일반 주식을 계속 찾아 알립니다.</p>
+            <p>30억원 이상이면서 종목별 최근 20개 3분봉 중앙값의 5배가 터지는 순간을 찾습니다.</p>
           </div>
           <div class="hamburger-clock">
             <span id="hamburgerClockLabel">다음 검색까지</span>
@@ -313,21 +313,21 @@
         </div>
         <div class="hamburger-metrics">
           <div><span>검색 구간</span><strong>09:00~15:30</strong></div>
-          <div><span>3분봉 기준</span><strong>300억원</strong></div>
+          <div><span>3분봉 기준</span><strong>30억 + 5배</strong></div>
           <div><span>오늘 포착</span><strong id="hamburgerMetricCount">0</strong></div>
           <div><span>마지막 확인</span><strong id="hamburgerUpdatedAt">-</strong></div>
         </div>
         <div class="hamburger-notice" id="hamburgerNotice">상태를 확인하고 있습니다.</div>
         <div class="hamburger-table-wrap">
           <table class="hamburger-table">
-            <thead><tr><th>종목명</th><th>포착 3분봉</th><th>현재가</th><th>등락률</th><th>3분봉 거래대금</th><th>상태</th></tr></thead>
+            <thead><tr><th>종목명</th><th>포착 3분봉</th><th>현재가</th><th>등락률</th><th>3분봉 거래대금</th><th>평소 대비</th><th>상태</th></tr></thead>
             <tbody id="hamburgerResultsBody">
-              <tr><td colspan="6" class="hamburger-empty-row">09:00부터 자동으로 결과가 표시됩니다.</td></tr>
+              <tr><td colspan="7" class="hamburger-empty-row">09:00부터 자동으로 결과가 표시됩니다.</td></tr>
             </tbody>
           </table>
         </div>
         <div class="hamburger-leaders">
-          <h3>현재 3분봉 거래대금 흐름 <span>300억원 미만도 진행 상황으로 표시</span></h3>
+          <h3>현재 3분봉 급증 배수 <span>종목별 최근 20개 3분봉 중앙값과 비교</span></h3>
           <div id="hamburgerLeaderBars" class="hamburger-leader-bars"></div>
         </div>
       </div>
@@ -468,7 +468,7 @@
           <div class="hamburger-help">
             <strong>🔔 알림 사용법</strong>
             <p>왼쪽의 <b>알림 켜기</b>를 한 번 누르고 장중에 이 페이지를 열어 두세요.</p>
-            <p>어느 3분봉이든 거래대금 300억원을 넘으면 소리와 브라우저 알림으로 알려드립니다.</p>
+            <p><b>관심</b>은 거래대금 급증, <b>햄버거</b>는 양봉 급증, <b>확인</b>은 다음 양봉까지 자금이 유지된 신호입니다.</p>
           </div>
         </div>
       </div>
@@ -542,9 +542,9 @@
         <h3 style="color:#ff9f43">🍔 햄버거 거래대금 기준</h3>
         <div class="strategy-steps">
           <div class="step"><span class="step-num hamburger-step">1</span><span>09:00~15:30 모든 3분봉 거래대금 확인</span></div>
-          <div class="step"><span class="step-num hamburger-step">2</span><span>해당 3분 동안 300억원 이상 일반 주식 포착</span></div>
-          <div class="step"><span class="step-num hamburger-step">3</span><span>ETF·ETN·인버스·레버리지는 제외</span></div>
-          <div class="step"><span class="step-num hamburger-step">4</span><span>소리와 브라우저 알림으로 즉시 안내</span></div>
+          <div class="step"><span class="step-num hamburger-step">2</span><span>30억원 이상 + 최근 20봉 중앙값의 5배 이상 포착</span></div>
+          <div class="step"><span class="step-num hamburger-step">3</span><span>양봉이면 햄버거, 다음 양봉도 80% 이상 유지하면 확인</span></div>
+          <div class="step"><span class="step-num hamburger-step">4</span><span>ETF·ETN·우선주·스팩 제외 후 알림</span></div>
         </div>
       </div>
     </aside>
@@ -565,6 +565,6 @@
   <script src="/js/vcp-scanner.js"></script>
   <script src="/js/doji-reversal-scanner.js"></script>
   <script src="/js/three-candle-reversal-scanner.js?v=20260812"></script>
-  <script src="/js/hamburger-scanner.js?v=20260821"></script>
+  <script src="/js/hamburger-scanner.js?v=20260821b"></script>
 </body>
 </html>
