@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const MIN_TRADING_VALUE_MILLION_WON = 3_000; // 네이버 거래대금 단위: 백만원 = 30억원
+const MIN_TRADING_VALUE_MILLION_WON = 10_000; // 네이버 거래대금 단위: 백만원 = 100억원
 const RELATIVE_MULTIPLIER = 5;
 const HISTORY_WINDOW = 20;
 const CONFIRMATION_RATIO = 0.8;
@@ -14,7 +14,7 @@ const EXCLUDED_NAME_PATTERN = /KODEX|TIGER|ACE|RISE|SOL |HANARO|PLUS |TIMEFOLIO|
 
 function emptyMemory(date = '') {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     date,
     signals: [],
     activeRows: [],
@@ -204,7 +204,7 @@ function resetForDate(date) {
   memory = emptyMemory(date);
   try {
     const saved = JSON.parse(fs.readFileSync(SNAPSHOT_FILE, 'utf8'));
-    if (saved.schemaVersion === 2 && saved.date === date) {
+    if (saved.schemaVersion === 3 && saved.date === date) {
       memory = { ...emptyMemory(date), ...saved, lastFetchAt: 0 };
     }
   } catch (_) {
@@ -428,7 +428,7 @@ async function getHamburgerStatus({ now = new Date(), fetchImpl = fetch } = {}) 
   const phaseInfo = getPhase(now);
   resetForDate(phaseInfo.date);
 
-  if (phaseInfo.phase === 'WAITING') return responsePayload(phaseInfo, '09:00부터 30억원 이상이면서 평소의 5배가 터지는 3분봉을 검색합니다.');
+  if (phaseInfo.phase === 'WAITING') return responsePayload(phaseInfo, '09:00부터 100억원 이상이면서 평소의 5배가 터지는 3분봉을 검색합니다.');
   if (phaseInfo.phase === 'CLOSED') return responsePayload(phaseInfo, '오늘 포착된 상대 거래대금 급증 종목입니다.');
 
   const barInfo = getBarInfo(phaseInfo);
