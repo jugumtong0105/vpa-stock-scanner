@@ -113,7 +113,7 @@ app.get('/api/alpha-prime/sectors', async (req, res) => {
   }
 });
 
-// ===== 햄버거 거래대금 알림: 100억원 이상 + 최근 20개 3분봉 중앙값의 5배 =====
+// ===== 햄버거 거래대금 알림: 50억원 이상 + 최근 20개 3분봉 중앙값의 5배 (100억원 이상은 강한 신호) =====
 app.get('/api/hamburger/status', async (req, res) => {
   try {
     res.json(await getHamburgerStatus());

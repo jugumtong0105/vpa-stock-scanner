@@ -9,7 +9,9 @@ const {
   parseMinuteHistory,
   getDynamicThreshold,
   MIN_TRADING_VALUE_MILLION_WON,
+  STRONG_TRADING_VALUE_MILLION_WON,
   RELATIVE_MULTIPLIER,
+  isStrongTradingValue,
   resetMemoryForTests
 } = require('../hamburger-service');
 
@@ -39,11 +41,14 @@ test('ETF와 레버리지 상품을 표시한다', () => {
   assert.equal(parseQuantPage(html, 'KOSPI')[0].isFund, true);
 });
 
-test('최소 100억원과 평소 대비 5배를 함께 사용한다', () => {
-  assert.equal(MIN_TRADING_VALUE_MILLION_WON, 10_000);
+test('최소 50억원과 평소 대비 5배를 함께 사용하고 100억원을 강한 신호로 구분한다', () => {
+  assert.equal(MIN_TRADING_VALUE_MILLION_WON, 5_000);
+  assert.equal(STRONG_TRADING_VALUE_MILLION_WON, 10_000);
   assert.equal(RELATIVE_MULTIPLIER, 5);
-  assert.equal(getDynamicThreshold(Array(20).fill({ tradingValueMillion: 200 })).thresholdMillion, 10_000);
+  assert.equal(getDynamicThreshold(Array(20).fill({ tradingValueMillion: 200 })).thresholdMillion, 5_000);
   assert.equal(getDynamicThreshold(Array(20).fill({ tradingValueMillion: 3_000 })).thresholdMillion, 15_000);
+  assert.equal(isStrongTradingValue(9_999), false);
+  assert.equal(isStrongTradingValue(10_000), true);
 });
 
 test('1분 누적 거래량을 직전 20개 3분봉 거래대금 이력으로 변환한다', () => {
@@ -84,7 +89,7 @@ test('정규장 상태와 거래일이 모두 맞을 때만 시장이 열린 것
   assert.equal(await isKrxMarketOpen('2026-08-24', mock({ marketStatus: 'OPEN', localTradedAt: '2026-08-21T15:30:00+09:00' })), false);
 });
 
-test('100억원·평소 5배·양봉을 포착하고 다음 양봉에서 확인 신호로 승격한다', async () => {
+test('50억원·평소 5배·양봉을 포착하고 다음 양봉에서 확인 신호로 승격한다', async () => {
   resetMemoryForTests('2026-08-24');
   let accumulated = 0;
   let price = 10_000;
@@ -110,7 +115,7 @@ test('100억원·평소 5배·양봉을 포착하고 다음 양봉에서 확인 
   let result = await getHamburgerStatus({ now: new Date('2026-08-24T09:00:01+09:00'), fetchImpl });
   assert.equal(result.rows.length, 0);
 
-  accumulated = 10_100;
+  accumulated = 5_100;
   price = 10_100;
   result = await getHamburgerStatus({ now: new Date('2026-08-24T09:02:00+09:00'), fetchImpl });
   assert.equal(result.rows.length, 0, '완성 전인 3분봉은 알리지 않는다');
@@ -118,10 +123,12 @@ test('100억원·평소 5배·양봉을 포착하고 다음 양봉에서 확인 
   result = await getHamburgerStatus({ now: new Date('2026-08-24T09:03:01+09:00'), fetchImpl });
   assert.equal(result.rows.length, 1);
   assert.equal(result.rows[0].stage, 'HAMBURGER');
-  assert.equal(result.rows[0].tradingValueMillion, 10_100);
+  assert.equal(result.rows[0].tradingValueMillion, 5_100);
+  assert.equal(result.rows[0].tradingValueEok, 51);
+  assert.equal(result.rows[0].isStrong, false);
   assert.ok(result.rows[0].multiple >= 5);
 
-  accumulated = 18_300;
+  accumulated = 9_300;
   price = 10_200;
   result = await getHamburgerStatus({ now: new Date('2026-08-24T09:05:30+09:00'), fetchImpl });
   assert.equal(result.rows[0].stage, 'HAMBURGER');

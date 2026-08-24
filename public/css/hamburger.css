@@ -32,7 +32,9 @@
 .hamburger-pass{padding:3px 7px;border-radius:12px;background:rgba(46,213,115,.13);color:#2ed573;font-size:10px;font-weight:700}
 .hamburger-pass.watch{background:rgba(250,204,21,.14);color:#facc15}
 .hamburger-pass.hamburger{background:rgba(255,159,67,.16);color:#ff9f43}
+.hamburger-pass.strong{background:rgba(255,71,87,.18);color:#ff6b81;box-shadow:inset 0 0 0 1px rgba(255,71,87,.2)}
 .hamburger-pass.confirmed{background:rgba(46,213,115,.16);color:#2ed573}
+.hamburger-pass.strong-confirmed{background:linear-gradient(135deg,rgba(255,71,87,.2),rgba(46,213,115,.16));color:#7bed9f;box-shadow:inset 0 0 0 1px rgba(255,71,87,.24)}
 .hamburger-baseline{display:block;margin-top:2px;color:var(--text-muted);font-size:9px;font-weight:400}
 .hamburger-empty-row{text-align:center!important;color:var(--text-muted);padding:40px!important}
 .hamburger-leaders{margin-top:14px;padding:14px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px}

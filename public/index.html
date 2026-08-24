@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
   <link rel="stylesheet" href="/css/style.css">
-  <link rel="stylesheet" href="/css/hamburger.css?v=20260821b">
+  <link rel="stylesheet" href="/css/hamburger.css?v=20260824a">
   <link rel="stylesheet" href="/css/alpha-prime.css?v=20260821">
 </head>
 <body>
@@ -230,7 +230,7 @@
           </div>
         </div>
         <div class="hamburger-mini-summary">
-          <span>3분봉 기준 <b>100억 + 평소 5배</b></span>
+          <span>3분봉 기준 <b>50억 + 평소 5배</b></span>
           <span id="hamburgerMatchCount">0건</span>
         </div>
         <div class="match-results" id="hamburgerMatchResults">
@@ -326,7 +326,7 @@
           <div>
             <p class="hamburger-eyebrow">ALL-DAY 3-MINUTE MONEY FLOW</p>
             <h2>🍔 햄버거 거래대금 알림</h2>
-            <p>100억원 이상이면서 종목별 최근 20개 3분봉 중앙값의 5배가 터지는 순간을 찾습니다.</p>
+            <p>50억원 이상이면서 종목별 최근 20개 3분봉 중앙값의 5배가 터지는 순간을 찾고, 100억원 이상 양봉은 강한 햄버거로 표시합니다.</p>
           </div>
           <div class="hamburger-clock">
             <span id="hamburgerClockLabel">다음 검색까지</span>
@@ -335,7 +335,7 @@
         </div>
         <div class="hamburger-metrics">
           <div><span>검색 구간</span><strong>09:00~15:30</strong></div>
-          <div><span>3분봉 기준</span><strong>100억 + 5배</strong></div>
+          <div><span>3분봉 기준</span><strong>50억 + 5배</strong></div>
           <div><span>오늘 포착</span><strong id="hamburgerMetricCount">0</strong></div>
           <div><span>마지막 확인</span><strong id="hamburgerUpdatedAt">-</strong></div>
         </div>
@@ -505,7 +505,7 @@
           <div class="hamburger-help">
             <strong>🔔 알림 사용법</strong>
             <p>왼쪽의 <b>알림 켜기</b>를 한 번 누르고 장중에 이 페이지를 열어 두세요.</p>
-            <p><b>관심</b>은 거래대금 급증, <b>햄버거</b>는 양봉 급증, <b>확인</b>은 다음 양봉까지 자금이 유지된 신호입니다.</p>
+            <p><b>관심</b>은 거래대금 급증, <b>햄버거</b>는 양봉 급증, <b>강한 햄버거</b>는 100억원 이상 양봉 급증, <b>확인</b>은 다음 양봉까지 자금이 유지된 신호입니다.</p>
           </div>
         </div>
         <div class="signals-list" id="alphaSignalsList" style="display:none">
@@ -582,8 +582,8 @@
         <h3 style="color:#ff9f43">🍔 햄버거 거래대금 기준</h3>
         <div class="strategy-steps">
           <div class="step"><span class="step-num hamburger-step">1</span><span>09:00~15:30 모든 3분봉 거래대금 확인</span></div>
-          <div class="step"><span class="step-num hamburger-step">2</span><span>100억원 이상 + 최근 20봉 중앙값의 5배 이상 포착</span></div>
-          <div class="step"><span class="step-num hamburger-step">3</span><span>양봉이면 햄버거, 다음 양봉도 80% 이상 유지하면 확인</span></div>
+          <div class="step"><span class="step-num hamburger-step">2</span><span>50억원 이상 + 최근 20봉 중앙값의 5배 이상 포착</span></div>
+          <div class="step"><span class="step-num hamburger-step">3</span><span>100억원 이상 양봉이면 강한 햄버거, 다음 양봉도 80% 이상 유지하면 확인</span></div>
           <div class="step"><span class="step-num hamburger-step">4</span><span>ETF·ETN·우선주·스팩 제외 후 알림</span></div>
         </div>
       </div>
@@ -614,7 +614,7 @@
   <script src="/js/vcp-scanner.js"></script>
   <script src="/js/doji-reversal-scanner.js"></script>
   <script src="/js/three-candle-reversal-scanner.js?v=20260812"></script>
-  <script src="/js/hamburger-scanner.js?v=20260821b"></script>
+  <script src="/js/hamburger-scanner.js?v=20260824a"></script>
   <script src="/js/alpha-prime-engine.js?v=20260821"></script>
   <script src="/js/alpha-prime-scanner.js?v=20260821"></script>
 </body>

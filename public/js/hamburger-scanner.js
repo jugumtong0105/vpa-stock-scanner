@@ -17,7 +17,9 @@
   }
 
   function stageMeta(row) {
+    if (row.stage === 'CONFIRMED' && row.isStrong) return { label: '강한 확인', className: 'strong-confirmed', icon: '🔥' };
     if (row.stage === 'CONFIRMED') return { label: '확인', className: 'confirmed', icon: '✅' };
+    if (row.stage === 'HAMBURGER' && row.isStrong) return { label: '강한 햄버거', className: 'strong', icon: '🔥' };
     if (row.stage === 'HAMBURGER') return { label: '햄버거', className: 'hamburger', icon: '🍔' };
     return { label: '관심', className: 'watch', icon: '👀' };
   }
@@ -106,8 +108,8 @@
     $('hamburgerMetricCount').textContent = String(rows.length);
     $('hamburgerMatchCount').textContent = `${rows.length}건`;
     if (!rows.length) {
-      $('hamburgerResultsBody').innerHTML = `<tr><td colspan="7" class="hamburger-empty-row">${data.phase === 'SCANNING' ? '100억원 이상 + 평소 5배 급증 신호를 기다리고 있습니다.' : '오늘 포착된 상대 거래대금 급증 종목이 없습니다.'}</td></tr>`;
-      $('hamburgerMatchResults').innerHTML = '<div class="empty-state"><span>🍔</span><p>아직 100억원 이상이면서<br>평소의 5배가 터진 종목이 없습니다.</p></div>';
+      $('hamburgerResultsBody').innerHTML = `<tr><td colspan="7" class="hamburger-empty-row">${data.phase === 'SCANNING' ? '50억원 이상 + 평소 5배 급증 신호를 기다리고 있습니다.' : '오늘 포착된 상대 거래대금 급증 종목이 없습니다.'}</td></tr>`;
+      $('hamburgerMatchResults').innerHTML = '<div class="empty-state"><span>🍔</span><p>아직 50억원 이상이면서<br>평소의 5배가 터진 종목이 없습니다.</p></div>';
       return;
     }
     $('hamburgerResultsBody').innerHTML = rows.map(row => {

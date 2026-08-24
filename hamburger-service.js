@@ -1,7 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const MIN_TRADING_VALUE_MILLION_WON = 10_000; // 네이버 거래대금 단위: 백만원 = 100억원
+const MIN_TRADING_VALUE_MILLION_WON = 5_000; // 네이버 거래대금 단위: 백만원 = 50억원
+const STRONG_TRADING_VALUE_MILLION_WON = 10_000; // 100억원 이상은 강한 햄버거
 const RELATIVE_MULTIPLIER = 5;
 const HISTORY_WINDOW = 20;
 const CONFIRMATION_RATIO = 0.8;
@@ -92,6 +93,14 @@ function median(values) {
   const sorted = [...values].sort((a, b) => a - b);
   const middle = Math.floor(sorted.length / 2);
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+function toEok(millionWon) {
+  return Math.round((Number(millionWon) || 0) / 100 * 10) / 10;
+}
+
+function isStrongTradingValue(millionWon) {
+  return Number(millionWon) >= STRONG_TRADING_VALUE_MILLION_WON;
 }
 
 function getDynamicThreshold(history = []) {
@@ -297,7 +306,7 @@ function finalizeCurrentBar(now) {
       previousSignal.stageLabel = '확인';
       previousSignal.confirmedAt = now.toISOString();
       previousSignal.confirmationBarLabel = row.barLabel;
-      previousSignal.confirmationValueEok = Math.round(row.tradingValueMillion / 10) / 10;
+      previousSignal.confirmationValueEok = toEok(row.tradingValueMillion);
     }
 
     if (dynamic.sampleSize >= 5 && row.tradingValueMillion >= dynamic.thresholdMillion) {
@@ -306,11 +315,13 @@ function finalizeCurrentBar(now) {
       const signal = {
         ...row,
         id: signalId,
+        valueUnitVersion: 2,
         stage,
         stageLabel: isBullish ? '햄버거' : '관심',
         isBullish,
-        medianTradingValueEok: Math.round(dynamic.medianMillion / 10) / 10,
-        dynamicThresholdEok: Math.round(dynamic.thresholdMillion / 10) / 10,
+        isStrong: isBullish && isStrongTradingValue(row.tradingValueMillion),
+        medianTradingValueEok: toEok(dynamic.medianMillion),
+        dynamicThresholdEok: toEok(dynamic.thresholdMillion),
         multiple: dynamic.medianMillion
           ? Math.round(row.tradingValueMillion / dynamic.medianMillion * 10) / 10
           : null,
@@ -385,9 +396,10 @@ function updateCurrentBar(stocks, barInfo, now) {
       openPrice: memory.openPrices[stock.code],
       changeRate: stock.changeRate,
       tradingValueMillion,
-      tradingValueEok: Math.round(tradingValueMillion / 10) / 10,
-      medianTradingValueEok: Math.round(dynamic.medianMillion / 10) / 10,
-      dynamicThresholdEok: Math.round(dynamic.thresholdMillion / 10) / 10,
+      tradingValueEok: toEok(tradingValueMillion),
+      medianTradingValueEok: toEok(dynamic.medianMillion),
+      dynamicThresholdEok: toEok(dynamic.thresholdMillion),
+      dynamicThresholdMillion: dynamic.thresholdMillion,
       multiple: dynamic.medianMillion ? Math.round(tradingValueMillion / dynamic.medianMillion * 10) / 10 : null,
       barKey: barInfo.key,
       barIndex: barInfo.index,
@@ -398,7 +410,7 @@ function updateCurrentBar(stocks, barInfo, now) {
   }
 
   memory.activeRows = leaders
-    .filter(row => row.tradingValueMillion >= row.dynamicThresholdEok * 100)
+    .filter(row => row.tradingValueMillion >= row.dynamicThresholdMillion)
     .sort((a, b) => b.tradingValueMillion - a.tradingValueMillion);
   memory.leaders = leaders
     .sort((a, b) => (b.multiple || 0) - (a.multiple || 0))
@@ -411,11 +423,27 @@ function responsePayload(phaseInfo, note) {
     success: true,
     date: memory.date,
     phase: phaseInfo.phase,
-    thresholdEok: MIN_TRADING_VALUE_MILLION_WON / 100,
+    thresholdEok: toEok(MIN_TRADING_VALUE_MILLION_WON),
+    strongThresholdEok: toEok(STRONG_TRADING_VALUE_MILLION_WON),
     relativeMultiplier: RELATIVE_MULTIPLIER,
     historyWindow: HISTORY_WINDOW,
     confirmationRatio: CONFIRMATION_RATIO,
-    rows: memory.signals,
+    rows: memory.signals.map(signal => ({
+      ...signal,
+      tradingValueEok: toEok(signal.tradingValueMillion),
+      medianTradingValueEok: signal.valueUnitVersion === 2
+        ? Number(signal.medianTradingValueEok) || 0
+        : toEok((Number(signal.medianTradingValueEok) || 0) * 10),
+      dynamicThresholdEok: signal.valueUnitVersion === 2
+        ? Number(signal.dynamicThresholdEok) || 0
+        : toEok((Number(signal.dynamicThresholdEok) || 0) * 10),
+      confirmationValueEok: signal.confirmationValueEok == null
+        ? signal.confirmationValueEok
+        : signal.valueUnitVersion === 2
+          ? Number(signal.confirmationValueEok) || 0
+          : toEok((Number(signal.confirmationValueEok) || 0) * 10),
+      isStrong: Boolean(signal.isBullish && isStrongTradingValue(signal.tradingValueMillion))
+    })),
     activeRows: memory.activeRows,
     leaders: memory.leaders,
     currentBarLabel: memory.barLabel,
@@ -428,7 +456,7 @@ async function getHamburgerStatus({ now = new Date(), fetchImpl = fetch } = {}) 
   const phaseInfo = getPhase(now);
   resetForDate(phaseInfo.date);
 
-  if (phaseInfo.phase === 'WAITING') return responsePayload(phaseInfo, '09:00부터 100억원 이상이면서 평소의 5배가 터지는 3분봉을 검색합니다.');
+  if (phaseInfo.phase === 'WAITING') return responsePayload(phaseInfo, '09:00부터 50억원 이상이면서 평소의 5배가 터지는 3분봉을 검색합니다. 100억원 이상 양봉은 강한 햄버거로 표시합니다.');
   if (phaseInfo.phase === 'CLOSED') return responsePayload(phaseInfo, '오늘 포착된 상대 거래대금 급증 종목입니다.');
 
   const barInfo = getBarInfo(phaseInfo);
@@ -449,12 +477,14 @@ async function getHamburgerStatus({ now = new Date(), fetchImpl = fetch } = {}) 
 
 module.exports = {
   MIN_TRADING_VALUE_MILLION_WON,
+  STRONG_TRADING_VALUE_MILLION_WON,
   RELATIVE_MULTIPLIER,
   HISTORY_WINDOW,
   CONFIRMATION_RATIO,
   parseQuantPage,
   parseMinuteHistory,
   getDynamicThreshold,
+  isStrongTradingValue,
   getPhase,
   getBarInfo,
   isKrxMarketOpen,
