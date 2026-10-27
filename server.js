@@ -64,28 +64,45 @@ app.get('/api/batch', async (req, res) => {
   res.json(results.filter(r => r.status === 'fulfilled').map(r => r.value));
 });
 
-// KOSPI/KOSDAQ 거래량 상위 종목 스크래핑 (EUC-KR 디코딩!)
+async function fetchNaverDomesticList({ marketType, orderType, startIdx = 0, pageSize = 250 }) {
+  const params = new URLSearchParams({
+    tradeType: 'KRX', marketType, orderType,
+    startIdx: String(startIdx), pageSize: String(pageSize)
+  });
+  const url = `https://stock.naver.com/api/domestic/market/stock/default?${params}`;
+  const response = await fetch(url, { headers: { ...UA, Referer: 'https://stock.naver.com/' } });
+  if (!response.ok) throw new Error(`네이버 종목 API 응답 ${response.status}`);
+  const rows = await response.json();
+  if (!Array.isArray(rows)) throw new Error('네이버 종목 API 형식 오류');
+  return rows;
+}
+
+function normalizeNaverStock(row, market) {
+  return {
+    code: row.itemcode,
+    name: row.itemname,
+    market,
+    mcap: Math.round(Number(row.marketSum || 0) / 100000000),
+    tradeAmount: Number(row.tradeAmount || 0),
+    tradable: row.tradableStatus === 'tradable' && row.tradeStopYn !== 'Y',
+    management: String(row.manageStatusGb || '0') !== '0',
+    marketAlertType: String(row.marketAlertType || '00')
+  };
+}
+
+// KOSPI/KOSDAQ 거래대금 상위 500종목 (네이버 금융 2026 공개 API)
 app.get('/api/stocklist', async (req, res) => {
   try {
     const all = [];
-    for (const sosok of [0, 1]) {
-      for (let page = 1; page <= 5; page++) {
-        const url = `https://finance.naver.com/sise/sise_quant.naver?sosok=${sosok}&page=${page}`;
-        const r = await fetch(url, { headers: { ...UA, 'Accept-Language': 'ko' } });
-        const buf = await r.arrayBuffer();
-        const html = new TextDecoder('euc-kr').decode(buf);
-        const regex = /href="\/item\/main\.naver\?code=(\d{6})"[^>]*>([^<]+)<\/a>/g;
-        let m;
-        while ((m = regex.exec(html)) !== null) {
-          const code = m[1], name = m[2].trim();
-          if (name && !all.find(s => s.code === code)) {
-            all.push({ code, name, market: sosok === 0 ? 'KOSPI' : 'KOSDAQ' });
-          }
-        }
-        await new Promise(r => setTimeout(r, 100));
+    for (const market of ['KOSPI', 'KOSDAQ']) {
+      const rows = await fetchNaverDomesticList({ marketType: market, orderType: 'priceTop' });
+      for (const row of rows) {
+        if (!row.itemcode || !row.itemname || row.type !== 'ST') continue;
+        const stock = normalizeNaverStock(row, market);
+        if (stock.tradable && !stock.management && stock.marketAlertType === '00') all.push(stock);
       }
     }
-    console.log(`✅ 종목 ${all.length}개 로딩 완료`);
+    console.log(`✅ 거래대금 상위 정상종목 ${all.length}개 로딩 완료`);
     res.json({ success: true, count: all.length, stocks: all });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
@@ -189,28 +206,15 @@ app.delete('/api/signals/:id', (req, res) => {
 app.get('/api/new-scanner/stocklist', async (req, res) => {
   try {
     const all = [];
-    for (const sosok of [0, 1]) { // 0: KOSPI, 1: KOSDAQ
-      for (let page = 1; page <= 30; page++) { // 시총 500억 이하를 포함하기 위해 30페이지 정도 탐색 (약 1500종목)
-        const url = `https://finance.naver.com/sise/sise_market_sum.naver?sosok=${sosok}&page=${page}`;
-        const r = await fetch(url, { headers: { ...UA, 'Accept-Language': 'ko' } });
-        const buf = await r.arrayBuffer();
-        const html = new TextDecoder('euc-kr').decode(buf);
-        
-        const rows = html.split('onMouseOver="mouseOver(this)"');
-        for (let i = 1; i < rows.length; i++) {
-          const row = rows[i];
-          const codeMatch = row.match(/code=(\d{6})/);
-          const nameMatch = row.match(/class="tltle">([^<]+)<\/a>/);
-          const tds = [...row.matchAll(/<td class="number">([\d,\.\-N/A\s]+)<\/td>/g)].map(m => m[1].trim());
-          if (codeMatch && nameMatch && tds.length >= 4) {
-            const mcapStr = tds[2].replace(/,/g, '');
-            const mcap = parseInt(mcapStr, 10);
-            if (!isNaN(mcap)) {
-              all.push({ code: codeMatch[1], name: nameMatch[1], mcap: mcap, market: sosok === 0 ? 'KOSPI' : 'KOSDAQ' });
-            }
-          }
+    for (const market of ['KOSPI', 'KOSDAQ']) {
+      for (let page = 0; page < 10; page++) {
+        const rows = await fetchNaverDomesticList({ marketType: market, orderType: 'marketSum', startIdx: page, pageSize: 100 });
+        for (const row of rows) {
+          if (!row.itemcode || !row.itemname || row.type !== 'ST') continue;
+          const stock = normalizeNaverStock(row, market);
+          if (!all.some(item => item.code === stock.code)) all.push(stock);
         }
-        await new Promise(r => setTimeout(r, 50));
+        if (rows.length < 100) break;
       }
     }
     console.log(`✅ 신규조건검색 종목 ${all.length}개 로딩 완료 (시가총액 포함)`);
