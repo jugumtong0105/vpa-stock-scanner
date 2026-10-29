@@ -160,6 +160,7 @@ body{font-family:var(--font);background:var(--bg-primary);color:var(--text-prima
 .sidebar-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));flex:0 0 auto;border-bottom:1px solid var(--border);background:var(--bg-card)}
 .sidebar-tab{min-width:0;padding:9px 5px;font-size:10px;line-height:1.35;font-weight:600;border:none;background:transparent;color:var(--text-muted);cursor:pointer;transition:var(--transition);font-family:var(--font);border-right:1px solid var(--border);border-bottom:1px solid var(--border);white-space:normal;word-break:keep-all}
 .sidebar-tab:nth-child(2n){border-right:none}
+.sidebar-tab:last-child:nth-child(odd){grid-column:1/-1;border-right:none}
 .sidebar-tab:hover{color:var(--text-primary);background:var(--bg-card-hover)}
 .sidebar-tab.active{color:var(--accent);border-bottom-color:var(--accent);background:var(--accent-dim)}
 .tab-content{display:flex;flex-direction:column;flex:1;overflow:hidden}
