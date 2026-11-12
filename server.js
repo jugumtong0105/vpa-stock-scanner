@@ -260,6 +260,15 @@ app.get('/api/new-scanner/investor/:code', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
+app.get('/api/kospi200', async (req, res) => {
+  try {
+    res.json({ stocks: await require('./kospi200-service').getConstituents() });
+  } catch (error) {
+    console.error('KOSPI200:', error.message);
+    res.status(502).json({ error: 'KOSPI200 list unavailable' });
+  }
+});
+
 app.listen(PORT, () => {
   ensureDataDir();
   console.log(`\n🚀 VPA 매수급소 스캐너 v5 (성과추적 탑재)`);

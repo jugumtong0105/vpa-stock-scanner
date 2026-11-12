@@ -1,6 +1,7 @@
 (() => {
   'use strict';
-  function detect(rows, period = 20, width = 10) {
+  const PERIOD = 20, WIDTH = 20;
+  function detect(rows, period = PERIOD, width = WIDTH) {
     if (!Array.isArray(rows) || rows.length < period || period < 2 || width <= 0 || width >= 100) return null;
     const recent = rows.slice(-period), bar = recent.at(-1);
     if (recent.some(r => ![r.open, r.high, r.low, r.close, r.volume].every(Number.isFinite) ||
@@ -28,7 +29,7 @@
     tabs.append(button);
     const panel = document.createElement('div');
     panel.className = 'tab-content';
-    panel.innerHTML = '<div class="sidebar-header"><h2>엔벨로프 하단 반등</h2><p>일봉 관찰용 · 장중 봉은 잠정</p><form class="param-group"><label>이평 기간 <input name="period" type="number" min="5" max="120" value="20" required></label><label>하단 폭 (%) <input name="width" type="number" min="1" max="40" step="0.5" value="10" required></label><label>분할 간격 (%) <input name="step" type="number" min="7" max="10" step="0.5" value="8" required></label><button class="btn-scan">검색</button></form><p role="status" class="scan-status"></p><small>거래대금 상위 종목 대상(코스피200 주도주 필터 아님). 기본 밴드·멈춤 기준은 구현값입니다.</small></div><div class="match-results"></div>';
+    panel.innerHTML = '<div class="sidebar-header"><h2>엔벨로프 하단 반등</h2><p>코스피200 구성종목 · 엔벨로프 (20, 20)</p><form class="param-group"><label>분할 간격 (%) <input name="step" type="number" min="7" max="10" step="0.5" value="8" required></label><button class="btn-scan">검색</button></form><p role="status" class="scan-status"></p><small>20일 단순이동평균의 80%가 하단선입니다. 장중 일봉은 잠정입니다.</small></div><div class="match-results"></div>';
     sidebar.append(panel);
     const chartSection = document.querySelector('.chart-section');
     const view = document.createElement('div');
@@ -98,10 +99,10 @@
       event.preventDefault();
       const submit = form.querySelector('button');
       if (submit.disabled) return;
-      const {period, width, step} = Object.fromEntries(new FormData(form));
+      const step = new FormData(form).get('step'), period = PERIOD, width = WIDTH;
       submit.disabled = true; results.replaceChildren(); draw(null); status.textContent = '종목 목록 확인 중…';
       try {
-        const {stocks} = await json('/api/stocklist');
+        const {stocks} = await json('/api/kospi200');
         if (!stocks?.length) throw Error('종목 목록을 받지 못했습니다.');
         const hits = [];
         let checked = 0;
