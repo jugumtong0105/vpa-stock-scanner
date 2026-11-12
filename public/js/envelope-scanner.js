@@ -36,11 +36,34 @@
     view.style.cssText = 'display:none;flex:1;min-height:0;flex-direction:column';
     view.innerHTML = '<div class="stock-info-bar"><strong></strong><span>파랑: 엔벨로프 하단 · 노랑: 이동평균</span></div><div class="chart-container"></div>';
     const caption = view.querySelector('strong'), canvas = view.lastElementChild;
+    const levels = document.createElement('div');
+    levels.className = 'panel-card';
+    levels.style.cssText = 'margin:4px 8px;font-size:12px;line-height:1.6';
+    view.insertBefore(levels, canvas);
     chartSection.append(view);
     let savedDisplays = null, chart, candle, lowerLine, centerLine;
     let selected = null;
+    function showLevels(hit) {
+      levels.hidden = !hit;
+      levels.replaceChildren();
+      if (!hit) return;
+      const [first, second, third, stop, target] = scenario(hit.close, hit.step);
+      const heading = document.createElement('strong');
+      heading.textContent = hit.confirmed ? '가상 매매 계획 · 멈춤 확인 후보' : '가상 가격 참고 · 관찰 단계 (멈춤 미확인)';
+      const grid = document.createElement('div');
+      grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:4px 10px';
+      for (const [label, value] of [['1차 매수가 · 40%', first], ['2차 매수가 · 30%', second], ['3차 매수가 · 30%', third], ['손절선 · 3차 대비 -5%', stop], ['1차 기준 +7% · 절반 예시', target]]) {
+        const item = document.createElement('div');
+        item.textContent = `${label}: ${won(value)}`;
+        grid.append(item);
+      }
+      const note = document.createElement('small');
+      note.textContent = `신호봉 종가 기준 · 차수별 ${hit.step}% 간격 · 비중은 종목별 예산 기준 · 실제 체결 및 갭 미반영`;
+      levels.append(heading, grid, note);
+    }
     function draw(hit) {
       selected = hit;
+      showLevels(hit);
       caption.textContent = hit ? `${hit.stock.name} (${hit.stock.code}) · ${hit.date}` : '검색 결과를 선택하면 차트가 표시됩니다.';
       if (!hit) { canvas.style.display = 'none'; return; }
       canvas.style.display = 'block';
@@ -115,7 +138,7 @@
               if (!stock || row.data?.length < +period || !row.data?.length) continue;
               checked++;
               const signal = detect(row.data, +period, +width);
-              if (signal) hits.push({stock, rows: row.data, period: +period, width: +width, ...signal});
+              if (signal) hits.push({stock, rows: row.data, period: +period, width: +width, step: +step, ...signal});
             }
           } catch (error) { console.warn('Envelope batch unavailable', error); }
           status.textContent = `진행 ${Math.min(i + 12, stocks.length)}/${stocks.length}`;
