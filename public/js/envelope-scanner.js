@@ -30,12 +30,62 @@
     panel.className = 'tab-content';
     panel.innerHTML = '<div class="sidebar-header"><h2>엔벨로프 하단 반등</h2><p>일봉 관찰용 · 장중 봉은 잠정</p><form class="param-group"><label>이평 기간 <input name="period" type="number" min="5" max="120" value="20" required></label><label>하단 폭 (%) <input name="width" type="number" min="1" max="40" step="0.5" value="10" required></label><label>분할 간격 (%) <input name="step" type="number" min="7" max="10" step="0.5" value="8" required></label><button class="btn-scan">검색</button></form><p role="status" class="scan-status"></p><small>거래대금 상위 종목 대상(코스피200 주도주 필터 아님). 기본 밴드·멈춤 기준은 구현값입니다.</small></div><div class="match-results"></div>';
     sidebar.append(panel);
+    const chartSection = document.querySelector('.chart-section');
+    const view = document.createElement('div');
+    view.style.cssText = 'display:none;flex:1;min-height:0;flex-direction:column';
+    view.innerHTML = '<div class="stock-info-bar"><strong></strong><span>파랑: 엔벨로프 하단 · 노랑: 이동평균</span></div><div class="chart-container"></div>';
+    const caption = view.querySelector('strong'), canvas = view.lastElementChild;
+    chartSection.append(view);
+    let savedDisplays = null, chart, candle, lowerLine, centerLine;
+    let selected = null;
+    function draw(hit) {
+      selected = hit;
+      caption.textContent = hit ? `${hit.stock.name} (${hit.stock.code}) · ${hit.date}` : '검색 결과를 선택하면 차트가 표시됩니다.';
+      if (!hit) { canvas.style.display = 'none'; return; }
+      canvas.style.display = 'block';
+      if (!window.LightweightCharts) { caption.textContent += ' · 차트 라이브러리를 불러오지 못했습니다.'; return; }
+      if (!chart) {
+        chart = window.LightweightCharts.createChart(canvas, {
+          autoSize: true,
+          layout: { background: {color: '#080b12'}, textColor: '#aab7ca' },
+          grid: { vertLines: {color: '#141c28'}, horzLines: {color: '#141c28'} }
+        });
+        candle = chart.addCandlestickSeries({upColor:'#ff4757',downColor:'#3b82f6',borderVisible:false,wickUpColor:'#ff4757',wickDownColor:'#3b82f6'});
+        lowerLine = chart.addLineSeries({color:'#38bdf8',lineWidth:2,priceLineVisible:false});
+        centerLine = chart.addLineSeries({color:'#facc15',lineWidth:1,priceLineVisible:false});
+      }
+      const rows = [...new Map(hit.rows.filter(r => /^\d{8}$/.test(r.date) &&
+        [r.open,r.high,r.low,r.close].every(Number.isFinite)).map(r => [String(r.date),r])).values()]
+        .sort((a,b) => String(a.date).localeCompare(String(b.date)));
+      const day = value => String(value).replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3');
+      candle.setData(rows.map(({date,open,high,low,close}) => ({time:day(date),open,high,low,close})));
+      const averages = rows.flatMap((r,i) => i + 1 < hit.period ? [] : [{
+        time: day(r.date), value: rows.slice(i + 1 - hit.period,i + 1).reduce((sum,b) => sum + b.close,0) / hit.period
+      }]);
+      centerLine.setData(averages);
+      lowerLine.setData(averages.map(p => ({time:p.time,value:p.value * (1 - hit.width / 100)})));
+      candle.setMarkers([{time:day(hit.date),position:'belowBar',color:'#38bdf8',shape:'arrowUp',text:'하단 접촉'}]);
+      chart.timeScale().fitContent();
+    }
+    tabs.addEventListener('click', event => {
+      const next = event.target.closest('.sidebar-tab');
+      if (!next || next === button || !savedDisplays) return;
+      for (const [el, display] of savedDisplays) el.style.display = display;
+      savedDisplays = null;
+      view.style.display = 'none';
+    }, true);
     button.addEventListener('click', () => {
       tabs.querySelectorAll('.sidebar-tab').forEach(el => el.classList.toggle('active', el === button));
       sidebar.querySelectorAll('.tab-content').forEach(el => {
         el.classList.toggle('active', el === panel);
         el.style.display = el === panel ? 'flex' : 'none';
       });
+      if (!savedDisplays) {
+        savedDisplays = [...chartSection.children].filter(el => el !== view).map(el => [el, el.style.display]);
+        for (const [el] of savedDisplays) el.style.display = 'none';
+      }
+      view.style.display = 'flex';
+      draw(selected);
     });
     const form = panel.querySelector('form'), status = panel.querySelector('[role=status]'), results = panel.querySelector('.match-results');
     const won = value => Math.round(value).toLocaleString('ko-KR') + '원';
@@ -49,7 +99,7 @@
       const submit = form.querySelector('button');
       if (submit.disabled) return;
       const {period, width, step} = Object.fromEntries(new FormData(form));
-      submit.disabled = true; results.replaceChildren(); status.textContent = '종목 목록 확인 중…';
+      submit.disabled = true; results.replaceChildren(); draw(null); status.textContent = '종목 목록 확인 중…';
       try {
         const {stocks} = await json('/api/stocklist');
         if (!stocks?.length) throw Error('종목 목록을 받지 못했습니다.');
@@ -64,7 +114,7 @@
               if (!stock || row.data?.length < +period || !row.data?.length) continue;
               checked++;
               const signal = detect(row.data, +period, +width);
-              if (signal) hits.push({stock, ...signal});
+              if (signal) hits.push({stock, rows: row.data, period: +period, width: +width, ...signal});
             }
           } catch (error) { console.warn('Envelope batch unavailable', error); }
           status.textContent = `진행 ${Math.min(i + 12, stocks.length)}/${stocks.length}`;
@@ -77,6 +127,7 @@
           const body = document.createElement('p'); body.className = 'match-detail';
           body.textContent = `일봉 ${hit.date} · 종가 ${won(hit.close)} · 하단 ${won(hit.lower)} · 중심선 ${won(hit.center)}`;
           card.append(title, body);
+          title.addEventListener('click', () => draw(hit));
           if (hit.confirmed) {
             const [first, second, third, stop, target] = scenario(hit.close, +step);
             const plan = document.createElement('p'); plan.className = 'match-detail';
@@ -84,6 +135,11 @@
             card.append(plan);
           }
           results.append(card);
+        }
+        if (hits.length) {
+          results.firstElementChild.open = true;
+          if (savedDisplays) draw(hits[0]);
+          else selected = hits[0];
         }
         status.textContent = checked ? `${checked}/${stocks.length}종목 확인 · 후보 ${hits.length}건${checked < stocks.length ? ' · 일부 데이터 부족/조회 실패' : ''}` : '분석 가능한 일봉을 받지 못했습니다.';
       } catch (error) { status.textContent = error.message; }
